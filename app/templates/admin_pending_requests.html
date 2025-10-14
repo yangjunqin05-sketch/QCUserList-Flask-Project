@@ -1,4 +1,4 @@
-<!-- app/templates/admin_pending_requests.html (最终禁用重构版 - 完整代码) -->
+<!-- app/templates/admin_pending_requests.html (最终按钮修复版) -->
 
 {% extends "base.html" %}
 
@@ -42,12 +42,12 @@
                                 {{ system.name if system else '未知系统' }}
                             </td>
                             <td>
+                                <!-- 核心修正：使用正确的 approve_add_request 和 cancel_add_request 路由 -->
                                 <form action="{{ url_for('routes.approve_add_request', request_id=req.id) }}" method="POST" class="d-inline">
                                     <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('确认批准此新增申请吗？')">批准</button>
                                 </form>
-<!-- 在 admin_pending_requests.html 中 -->
-                                <form action="{{ url_for('routes.cancel_partial_disable_request', request_id=req.id) }}" method="POST" class="d-inline ms-1">
-                                    <button type="submit" class="btn btn-sm btn-secondary" onclick="return confirm('确定要撤销此申请吗？')">撤销</button>
+                                <form action="{{ url_for('routes.cancel_add_request', request_id=req.id) }}" method="POST" class="d-inline ms-1">
+                                    <button type="submit" class="btn btn-sm btn-secondary" onclick="return confirm('确定要撤销此新增申请吗？')">撤销</button>
                                 </form>
                             </td>
                         </tr>
@@ -87,14 +87,8 @@
                             <td>{{ req.account_to_disable.chinese_name }} ({{ req.account_to_disable.username }})</td>
                             <td>
                                 {% set systems_map = {} %}
-                                {% for su in req.account_to_disable.system_access.filter_by(is_active=True) %}
-                                    {% if su.system.name not in systems_map %}{% set _ = systems_map.update({su.system.name: {'computer': [], 'workstation': []}}) %}{% endif %}
-                                    {% set _ = systems_map[su.system.name]['computer'].append(su.system_role) %}
-                                {% endfor %}
-                                {% for wu in req.account_to_disable.workstation_access.filter_by(is_active=True) %}
-                                    {% if wu.system.name not in systems_map %}{% set _ = systems_map.update({wu.system.name: {'computer': [], 'workstation': []}}) %}{% endif %}
-                                     {% set _ = systems_map[wu.system.name]['workstation'].append(wu.role.name) %}
-                                {% endfor %}
+                                {% for su in req.account_to_disable.system_access.filter_by(is_active=True) %}{% if su.system.name not in systems_map %}{% set _ = systems_map.update({su.system.name: {'computer': [], 'workstation': []}}) %}{% endif %}{% set _ = systems_map[su.system.name]['computer'].append(su.system_role) %}{% endfor %}
+                                {% for wu in req.account_to_disable.workstation_access.filter_by(is_active=True) %}{% if wu.system.name not in systems_map %}{% set _ = systems_map.update({wu.system.name: {'computer': [], 'workstation': []}}) %}{% endif %}{% set _ = systems_map[wu.system.name]['workstation'].append(wu.role.name) %}{% endfor %}
                                 <ul class="list-unstyled mb-0 small">
                                     {% for system_name, roles in systems_map.items() %}
                                     <li>
@@ -112,7 +106,10 @@
                                <form action="{{ url_for('routes.approve_disable_request', request_id=req.id) }}" method="POST" class="d-inline">
                                     <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('确认批准此禁用申请吗？将禁用该用户在所有系统中的权限。')">批准禁用</button>
                                </form>
-                               {# 在后端routes.py中添加 cancel_disable_request 路由后可启用此功能 #}
+                               <!-- 核心修正：添加撤销按钮 -->
+                               <form action="{{ url_for('routes.cancel_disable_request', request_id=req.id) }}" method="POST" class="d-inline ms-1">
+                                    <button type="submit" class="btn btn-sm btn-secondary" onclick="return confirm('确定要撤销此禁用申请吗？')">撤销</button>
+                               </form>
                             </td>
                         </tr>
                         {% endfor %}

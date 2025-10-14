@@ -1,10 +1,9 @@
 # app/routes.py
-
 from flask import render_template, flash, redirect, url_for, request, Blueprint, jsonify
 from flask_login import current_user, login_user, logout_user, login_required
 from app import db
 from app.models import (User, System, SystemAccount, CheckHistory, SystemUser, WorkstationUser, 
-                        SystemRole,DisableRequest, Group, Script, Job, UserRequest,RoleChangeRequest,
+                        SystemRole, DisableRequest, Group, Script, Job, UserRequest,RoleChangeRequest,
                         MenjinDeletionRequest, PartialDisableRequest)
 from app.forms import (LoginForm, SearchUserForm, EditSystemForm, AssignGroupForm, 
                        AddSystemForm, GroupForm, ScriptForm, ExecuteJobForm,
@@ -348,19 +347,21 @@ def new_user_request():
 @login_required
 def my_requests():
     add_reqs = UserRequest.query.filter_by(requested_by_id=current_user.id).order_by(UserRequest.request_date.desc()).all()
+    # 使用正确的模型
     disable_reqs = DisableRequest.query.filter_by(requested_by_id=current_user.id).order_by(DisableRequest.request_date.desc()).all()
     role_change_reqs = RoleChangeRequest.query.filter_by(requested_by_id=current_user.id).order_by(RoleChangeRequest.request_date.desc()).all()
     all_systems = {s.id: s for s in System.query.all()}
     return render_template('my_requests.html', title='我的申请记录',
                            add_requests=add_reqs,
-                           disable_requests=disable_reqs, # <-- 修正
+                           disable_requests=disable_reqs, # 使用正确的变量名
                            role_change_requests=role_change_reqs,
                            all_systems=all_systems)
+
 
 @bp.route('/my_requests/<req_type>/<int:request_id>/cancel', methods=['POST'])
 @login_required
 def cancel_my_request(req_type, request_id):
-    """处理普通用户撤销自己的待处理申请"""
+    # 使用正确的 model_map
     model_map = {
         'add': UserRequest,
         'disable': DisableRequest,
@@ -370,21 +371,16 @@ def cancel_my_request(req_type, request_id):
     if not Model:
         flash('无效的申请类型。', 'danger')
         return redirect(url_for('routes.my_requests'))
-
     req = Model.query.get_or_404(request_id)
-
-    # 安全检查：确保用户只能撤销自己的申请
     if req.requested_by_id != current_user.id:
         flash('您没有权限撤销此申请。', 'danger')
         return redirect(url_for('routes.my_requests'))
-        
     if req.status == 'pending':
         db.session.delete(req)
         db.session.commit()
         flash('申请已成功撤销。', 'success')
     else:
         flash('无法撤销一个已被管理员处理的申请。', 'warning')
-        
     return redirect(url_for('routes.my_requests'))
 
 
@@ -452,7 +448,6 @@ def request_person_disable(chinese_name):
         flash(f'“{chinese_name}” 的所有活动系统账户都已有待处理的禁用申请。', 'warning')
     return redirect(url_for('routes.user_directory'))
 
-
 @bp.route('/user/request_partial_disable/<string:chinese_name>', methods=['POST'])
 @login_required
 def request_partial_disable(chinese_name):
@@ -481,12 +476,12 @@ def request_partial_disable(chinese_name):
     return redirect(url_for('routes.user_directory'))
 
 
+
 @bp.route('/admin/requests')
 @login_required
 @admin_required
 def pending_requests():
     add_reqs = UserRequest.query.filter_by(status='pending').order_by(UserRequest.request_date.desc()).all()
-    # 核心修正：使用新的模型名 DisableRequest
     disable_reqs = DisableRequest.query.filter_by(status='pending').order_by(DisableRequest.request_date.desc()).all()
     role_change_reqs = RoleChangeRequest.query.filter_by(status='pending').order_by(RoleChangeRequest.request_date.desc()).all()
     menjin_del_reqs = MenjinDeletionRequest.query.filter_by(status='pending').order_by(MenjinDeletionRequest.request_date.desc()).all()
@@ -495,11 +490,12 @@ def pending_requests():
     all_systems = {s.id: s for s in System.query.all()}
     return render_template('admin_pending_requests.html', title='待执行申请', 
                            add_requests=add_reqs, 
-                           disable_requests=disable_reqs, # 核心修正：传递新的变量名
+                           disable_requests=disable_reqs,
                            role_change_requests=role_change_reqs,
                            menjin_del_requests=menjin_del_reqs,
                            partial_disable_requests=partial_disable_reqs,
                            all_systems=all_systems)
+
 @bp.route('/admin/requests/add/<int:request_id>/approve', methods=['POST'])
 @login_required
 @admin_required
@@ -571,7 +567,6 @@ def approve_partial_disable_request(request_id):
     db.session.commit()
     flash(f'已为用户 “{req.chinese_name}” 成功禁用了 {disabled_count} 项系统权限。', 'success')
     return redirect(url_for('routes.pending_requests'))
-
 @bp.route('/admin/requests/partial_disable/<int:request_id>/cancel', methods=['POST'])
 @login_required
 @admin_required
@@ -664,12 +659,25 @@ def approve_disable_request(request_id):
     WorkstationUser.query.filter_by(account_id=account_to_disable.id).update({'is_active': False}, synchronize_session=False)
     
     req.status = 'completed'
-    
-    # 现在，commit 会将上面所有的更改（包括两个update和status的更改）一并提交
-    db.session.commit() 
+    db.session.commit()
     
     flash(f'用户 "{account_to_disable.chinese_name}" 的所有系统权限已禁用。', 'success')
     return redirect(url_for('routes.pending_requests'))
+
+@bp.route('/admin/requests/disable/<int:request_id>/cancel', methods=['POST'])
+@login_required
+@admin_required
+def cancel_disable_request(request_id):
+    req = DisableRequest.query.get_or_404(request_id)
+    if req.status == 'pending':
+        user_name_to_flash = req.account_to_disable.chinese_name
+        db.session.delete(req)
+        db.session.commit()
+        flash(f'已成功撤销对用户 “{user_name_to_flash}” 的禁用申请。', 'success')
+    else:
+        flash('无法撤销一个已处理的申请。', 'warning')
+    return redirect(url_for('routes.pending_requests'))
+
 
 @bp.route('/admin/requests/delete/<int:request_id>/cancel', methods=['POST'])
 @login_required

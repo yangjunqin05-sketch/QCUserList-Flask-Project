@@ -1,45 +1,37 @@
+<!-- app/templates/system_detail.html (禁用功能重构版) -->
+
 {% extends "base.html" %}
 
 {% block content %}
 <div class="container">
-    <!-- 页面标题和编辑按钮 -->
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2>
-            <small class="text-muted">{{ system.system_number }}</small> - {{ system.name }}
-        </h2>
+        <h2><small class="text-muted">{{ system.system_number }}</small> - {{ system.name }}</h2>
         {% if current_user.role == 'admin' %}
-            <a href="{{ url_for('routes.edit_system', system_id=system.id) }}" class="btn btn-secondary">
-                <i class="bi bi-pencil-square me-1"></i>编辑系统信息
-            </a>
+            <a href="{{ url_for('routes.edit_system', system_id=system.id) }}" class="btn btn-secondary"><i class="bi bi-pencil-square me-1"></i>编辑系统信息</a>
         {% endif %}
     </div>
     <hr>
-    
     <div class="row g-4">
-        <!-- 左侧：用户清单与远程操作 -->
         <div class="col-lg-8">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h4><i class="bi bi-people-fill me-2"></i>计算机化系统用户清单</h4>
                 {% if current_user.role == 'admin' %}
-                    <a href="{{ url_for('routes.batch_import_users', system_id=system.id) }}" class="btn btn-outline-primary btn-sm">
-                        <i class="bi bi-upload me-1"></i>批量导入用户
-                    </a>
+                    <a href="{{ url_for('routes.batch_import_users', system_id=system.id) }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-upload me-1"></i>批量导入用户</a>
                 {% endif %}
             </div>
             <div class="row">
                 <!-- 电脑用户 -->
                 <div class="col-md-6">
                     <div class="card h-100">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <strong>电脑用户清单</strong>
-                            {% if system.is_domain_joined %}<span class="badge bg-success">已加域</span>{% endif %}
-                        </div>
+                        <div class="card-header d-flex justify-content-between align-items-center"><strong>电脑用户清单</strong>{% if system.is_domain_joined %}<span class="badge bg-success">已加域</span>{% endif %}</div>
                         <div class="card-body">
-                            {% if system.system_users.all() %}
+                            <!-- 核心修正：在这里添加 .filter_by(is_active=True) -->
+                            {% set active_computer_users = system.system_users.filter_by(is_active=True).all() %}
+                            {% if active_computer_users %}
                             <table class="table table-sm">
-                                <thead><tr><th>用户名</th><th>中文名</th><th>电脑角色/权限</th></tr></thead>
+                                <thead><tr><th>用户名</th><th>中文名</th><th>电脑角色</th></tr></thead>
                                 <tbody>
-                                {% for su in system.system_users %}
+                                {% for su in active_computer_users %}
                                 <tr>
                                     <td><code>{{ su.account.username }}</code></td>
                                     <td>{{ su.account.chinese_name }}</td>
@@ -49,7 +41,24 @@
                                 </tbody>
                             </table>
                             {% else %}
-                            <p class="text-muted">该系统暂无电脑用户。</p>
+                            <p class="text-muted">该系统暂无活动电脑用户。</p>
+                            {% endif %}
+                            
+                            <!-- 已禁用用户 -->
+                            {% set disabled_computer_users = system.system_users.filter_by(is_active=False).all() %}
+                            {% if disabled_computer_users %}
+                            <hr>
+                            <h6 class="text-muted small">已禁用用户</h6>
+                            <ul class="list-group list-group-flush">
+                                {% for su in disabled_computer_users %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center list-group-item-secondary py-1 px-2">
+                                    <small><code>{{ su.account.username }}</code> ({{ su.account.chinese_name }}) - {{ su.system_role }}</small>
+                                    <form action="{{ url_for('routes.enable_user_link', link_type='computer', link_id=su.id) }}" method="POST" onsubmit="return confirm('确认要重新启用该用户的此项权限吗？')">
+                                        <button class="btn btn-outline-success btn-sm" style="--bs-btn-padding-y: .1rem; font-size: 0.75rem;">启用</button>
+                                    </form>
+                                </li>
+                                {% endfor %}
+                            </ul>
                             {% endif %}
                         </div>
                         {% if current_user.role == 'admin' %}
@@ -69,16 +78,15 @@
                 <!-- 工作站用户 -->
                 <div class="col-md-6">
                     <div class="card h-100">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                             <strong>工作站用户清单</strong>
-                            {% if system.is_workstation_domain_joined %}<span class="badge bg-success">已加域</span>{% endif %}
-                        </div>
+                        <div class="card-header d-flex justify-content-between align-items-center"><strong>工作站用户清单</strong>{% if system.is_workstation_domain_joined %}<span class="badge bg-success">已加域</span>{% endif %}</div>
                         <div class="card-body">
-                             {% if system.workstation_users.all() %}
+                             <!-- 核心修正：在这里添加 .filter_by(is_active=True) -->
+                             {% set active_ws_users = system.workstation_users.filter_by(is_active=True).all() %}
+                             {% if active_ws_users %}
                              <table class="table table-sm">
                                 <thead><tr><th>用户名</th><th>中文名</th><th>工作站角色</th></tr></thead>
                                 <tbody>
-                                {% for wu in system.workstation_users %}
+                                {% for wu in active_ws_users %}
                                 <tr>
                                     <td><code>{{ wu.account.username }}</code></td>
                                     <td>{{ wu.account.chinese_name }}</td>
@@ -88,7 +96,24 @@
                                 </tbody>
                             </table>
                             {% else %}
-                            <p class="text-muted">该系统暂无工作站用户。</p>
+                            <p class="text-muted">该系统暂无活动工作站用户。</p>
+                            {% endif %}
+
+                            <!-- 已禁用用户 -->
+                            {% set disabled_ws_users = system.workstation_users.filter_by(is_active=False).all() %}
+                            {% if disabled_ws_users %}
+                            <hr>
+                            <h6 class="text-muted small">已禁用用户</h6>
+                            <ul class="list-group list-group-flush">
+                                {% for wu in disabled_ws_users %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center list-group-item-secondary py-1 px-2">
+                                    <small><code>{{ wu.account.username }}</code> ({{ wu.account.chinese_name }}) - {{ wu.role.name }}</small>
+                                    <form action="{{ url_for('routes.enable_user_link', link_type='workstation', link_id=wu.id) }}" method="POST" onsubmit="return confirm('确认要重新启用该用户的此项权限吗？')">
+                                        <button class="btn btn-outline-success btn-sm" style="--bs-btn-padding-y: .1rem; font-size: 0.75rem;">启用</button>
+                                    </form>
+                                </li>
+                                {% endfor %}
+                            </ul>
                             {% endif %}
                         </div>
                         {% if current_user.role == 'admin' %}
@@ -106,47 +131,6 @@
                     </div>
                 </div>
             </div>
-
-            <!-- 远程执行脚本 -->
-             {% if current_user.role == 'admin' and system.computer_name %}
-             <div class="card mt-4">
-                 <div class="card-body">
-                     <h5 class="card-title"><i class="bi bi-terminal me-2"></i>远程操作</h5>
-                     <p class="card-text small text-muted">选择一个脚本在此计算机 ({{ system.computer_name }}) 上执行。</p>
-                     <form onsubmit="executeScript(event, {{ system.id }}, '{{ system.computer_name }}')">
-                        <div class="input-group">
-                            <select class="form-select" id="script-select-{{ system.id }}" required>
-                                <option value="" selected disabled>-- 请选择一个脚本 --</option>
-                                {% for script in scripts %}
-                                <option value="{{ script.id }}">{{ script.name }}</option>
-                                {% endfor %}
-                            </select>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-play-fill me-1"></i>立即执行
-                            </button>
-                        </div>
-                    </form>
-                 </div>
-             </div>
-             {% endif %}
-        </div>
-        
-        <!-- 右侧：系统信息 -->
-        <div class="col-lg-4">
-            <div class="card">
-                <div class="card-header">
-                    <h4><i class="bi bi-info-circle-fill me-2"></i>系统信息</h4>
-                </div>
-                <ul class="list-group list-group-flush">
-                    <li class="list-group-item"><strong>分组:</strong> {{ system.group.name if system.group else '未分组' }}</li>
-                    <li class="list-group-item"><strong>计算机名:</strong> {{ system.computer_name or 'N/A' }}</li>
-                    <li class="list-group-item"><strong>IP 地址:</strong> {{ system.ip_address or 'N/A' }}</li>
-                    <li class="list-group-item"><strong>备注:</strong> {{ system.notes or '无' }}</li>
-                </ul>
-            </div>
-        </div>
-    </div>
-</div>
 
 <!-- 远程执行结果模态框 -->
 <div class="modal fade" id="jobResultModal" tabindex="-1" aria-labelledby="jobResultModalLabel" aria-hidden="true">

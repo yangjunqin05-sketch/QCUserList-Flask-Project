@@ -1,4 +1,4 @@
-<!-- app/templates/user_directory.html (最终禁用重构版 - 完整代码) -->
+<!-- app/templates/user_directory.html (最终功能完整版) -->
 
 {% extends "base.html" %}
 
@@ -12,8 +12,6 @@
             </p>
         </div>
     </div>
-
-    <!-- 搜索框 -->
     <div class="card mb-4">
         <div class="card-body">
             <form method="GET" action="{{ url_for('routes.user_directory') }}">
@@ -24,7 +22,6 @@
             </form>
         </div>
     </div>
-    
     <div class="card">
         <div class="card-body">
             <div class="table-responsive">
@@ -42,57 +39,35 @@
                     <tbody>
                         {% for chinese_name, accounts in accounts_by_person.items() %}
                         <tr>
-                            <td rowspan="{{ accounts|length }}" style="vertical-align: middle;">
-                                <strong>{{ chinese_name }}</strong>
-                            </td>
-                            
+                            <td rowspan="{{ accounts|length }}" style="vertical-align: middle;"><strong>{{ chinese_name }}</strong></td>
                             <td><code>{{ accounts[0].username }}</code></td>
                             <td>
                                 {% set systems_map = {} %}
-                                {% for su in accounts[0].system_access.filter_by(is_active=True) %}
-                                    {% if su.system.name not in systems_map %}{% set _ = systems_map.update({su.system.name: {'computer': [], 'workstation': []}}) %}{% endif %}
-                                    {% set _ = systems_map[su.system.name]['computer'].append(su.system_role) %}
-                                {% endfor %}
-                                {% for wu in accounts[0].workstation_access.filter_by(is_active=True) %}
-                                    {% if wu.system.name not in systems_map %}{% set _ = systems_map.update({wu.system.name: {'computer': [], 'workstation': []}}) %}{% endif %}
-                                    {% set _ = systems_map[wu.system.name]['workstation'].append(wu.role.name) %}
-                                {% endfor %}
+                                {% for su in accounts[0].system_access.filter_by(is_active=True) %}{% if su.system.name not in systems_map %}{% set _ = systems_map.update({su.system.name: {'computer': [], 'workstation': []}}) %}{% endif %}{% set _ = systems_map[su.system.name]['computer'].append(su.system_role) %}{% endfor %}
+                                {% for wu in accounts[0].workstation_access.filter_by(is_active=True) %}{% if wu.system.name not in systems_map %}{% set _ = systems_map.update({wu.system.name: {'computer': [], 'workstation': []}}) %}{% endif %}{% set _ = systems_map[wu.system.name]['workstation'].append(wu.role.name) %}{% endfor %}
                                 <ul class="list-unstyled mb-0 small">
                                     {% for system_name, roles in systems_map.items() %}
                                     <li><strong>{{ system_name }}:</strong> {% if roles.computer %}电脑用户 ({{ roles.computer | join(', ') }}){% endif %}{% if roles.computer and roles.workstation %}; {% endif %}{% if roles.workstation %}工作站用户 ({{ roles.workstation | join(', ') }}){% endif %}</li>
                                     {% endfor %}
                                 </ul>
                             </td>
-
                             {% if current_user.role == 'admin' %}
                             <td rowspan="{{ accounts|length }}" style="vertical-align: middle;">
-                                <!-- 全量禁用按钮 -->
                                 <form action="{{ url_for('routes.request_person_disable', chinese_name=chinese_name) }}" method="POST" 
-                                      onsubmit="return confirm('警告：确定要为 “{{ chinese_name }}” 的所有活动账户申请【禁用】吗？')" class="d-inline">
-                                    <button type="submit" class="btn btn-danger btn-sm">申请禁用</button>
+                                      onsubmit="confirmFullDisable(event, '{{ chinese_name }}')" class="d-inline">
+                                    <button type="submit" class="btn btn-danger btn-sm">全部禁用</button>
                                 </form>
-                                
-                                <!-- 部分禁用按钮 -->
-                                <button type="button" class="btn btn-warning btn-sm d-inline ms-1" onclick="openPartialDisableModal('{{ chinese_name }}')">
-                                    部分禁用
-                                </button>
+                                <button type="button" class="btn btn-warning btn-sm d-inline ms-1" onclick="openPartialDisableModal('{{ chinese_name }}')">部分禁用</button>
                             </td>
                             {% endif %}
                         </tr>
-                        
                         {% for account in accounts[1:] %}
                         <tr>
                             <td><code>{{ account.username }}</code></td>
                             <td>
                                 {% set systems_map = {} %}
-                                {% for su in account.system_access.filter_by(is_active=True) %}
-                                    {% if su.system.name not in systems_map %}{% set _ = systems_map.update({su.system.name: {'computer': [], 'workstation': []}}) %}{% endif %}
-                                    {% set _ = systems_map[su.system.name]['computer'].append(su.system_role) %}
-                                {% endfor %}
-                                {% for wu in account.workstation_access.filter_by(is_active=True) %}
-                                    {% if wu.system.name not in systems_map %}{% set _ = systems_map.update({wu.system.name: {'computer': [], 'workstation': []}}) %}{% endif %}
-                                    {% set _ = systems_map[wu.system.name]['workstation'].append(wu.role.name) %}
-                                {% endfor %}
+                                {% for su in account.system_access.filter_by(is_active=True) %}{% if su.system.name not in systems_map %}{% set _ = systems_map.update({su.system.name: {'computer': [], 'workstation': []}}) %}{% endif %}{% set _ = systems_map[su.system.name]['computer'].append(su.system_role) %}{% endfor %}
+                                {% for wu in account.workstation_access.filter_by(is_active=True) %}{% if wu.system.name not in systems_map %}{% set _ = systems_map.update({wu.system.name: {'computer': [], 'workstation': []}}) %}{% endif %}{% set _ = systems_map[wu.system.name]['workstation'].append(wu.role.name) %}{% endfor %}
                                 <ul class="list-unstyled mb-0 small">
                                     {% for system_name, roles in systems_map.items() %}
                                     <li><strong>{{ system_name }}:</strong> {% if roles.computer %}电脑用户 ({{ roles.computer | join(', ') }}){% endif %}{% if roles.computer and roles.workstation %}; {% endif %}{% if roles.workstation %}工作站用户 ({{ roles.workstation | join(', ') }}){% endif %}</li>
@@ -101,7 +76,6 @@
                             </td>
                         </tr>
                         {% endfor %}
-
                         {% else %}
                         <tr><td colspan="4" class="text-center text-muted">{% if search_term %}没有找到符合“{{ search_term }}”的用户。{% else %}当前没有任何有效的系统用户被记录。{% endif %}</td></tr>
                         {% endfor %}
@@ -124,11 +98,7 @@
           <div class="modal-body">
             <p class="text-muted">请勾选需要禁用的权限：</p>
             <div id="modal-body-content">
-                <div class="text-center my-3">
-                    <div class="spinner-border" role="status">
-                        <span class="visually-hidden">正在加载...</span>
-                    </div>
-                </div>
+                <div class="text-center my-3"><div class="spinner-border" role="status"><span class="visually-hidden">正在加载...</span></div></div>
             </div>
           </div>
           <div class="modal-footer">
@@ -143,21 +113,58 @@
 
 {% block scripts %}
 {{ super() }}
+<!-- 确保两个JavaScript函数都存在 -->
 <script>
-const partialDisableModal = new bootstrap.Modal(document.getElementById('partialDisableModal'));
-const modalUserName = document.getElementById('modal-user-name');
-const modalBodyContent = document.getElementById('modal-body-content');
-const modalForm = document.getElementById('modal-form');
+// “全部禁用”按钮的联动门禁功能
+async function confirmFullDisable(event, chineseName) {
+    event.preventDefault(); 
+    const form = event.target;
+    const disableSystemAccess = confirm(`警告：确定要为 “${chineseName}” 的所有活动账户申请【禁用】吗？`);
+    if (!disableSystemAccess) {
+        return;
+    }
+    const syncMenjin = confirm(`是否需要为 “${chineseName}” 同步处理【门禁权限】？\n\n- 点击 [确定] 将在提交后，跳转到门禁页面。\n- 点击 [取消] 将仅提交系统权限的禁用申请。`);
+    if (syncMenjin) {
+        try {
+            const response = await fetch(form.action, { method: form.method });
+            if (response.ok) {
+                const menjinUrl = new URL("{{ url_for('menjin.list_users_page', _external=True) }}");
+                menjinUrl.searchParams.set('search_name', chineseName);
+                window.location.href = menjinUrl.toString();
+            } else {
+                alert('提交系统禁用申请时出错，请刷新页面后重试。');
+            }
+        } catch (error) {
+            console.error('Fetch error:', error);
+            alert('提交申请时发生网络错误。');
+        }
+    } else {
+        form.submit();
+    }
+}
 
+// “部分禁用”按钮的弹窗功能
 async function openPartialDisableModal(chineseName) {
+    const modalElement = document.getElementById('partialDisableModal');
+    if (!modalElement) {
+        console.error('错误：找不到 ID 为 "partialDisableModal" 的模态框元素！');
+        return;
+    }
+    const partialDisableModal = bootstrap.Modal.getOrCreateInstance(modalElement);
+    const modalUserName = document.getElementById('modal-user-name');
+    const modalBodyContent = document.getElementById('modal-body-content');
+    const modalForm = document.getElementById('modal-form');
+
     modalUserName.textContent = chineseName;
     modalBodyContent.innerHTML = `<div class="text-center my-3"><div class="spinner-border" role="status"><span class="visually-hidden">正在加载...</span></div></div>`;
     modalForm.action = `/user/request_partial_disable/${encodeURIComponent(chineseName)}`;
     partialDisableModal.show();
+    
     try {
         const response = await fetch(`/api/user/${encodeURIComponent(chineseName)}/access_links`);
         if (!response.ok) throw new Error('网络响应错误');
         const data = await response.json();
+        
         let content = '<p class="text-muted">该用户没有可供禁用的活动权限。</p>';
         if (data.computer_links.length > 0 || data.workstation_links.length > 0) {
             content = '';
