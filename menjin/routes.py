@@ -3,8 +3,8 @@
 # 关键修正 1: 从 flask 导入 jsonify
 from flask import request, render_template, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
-from app import db
-from app.models import MenjinDeletionRequest
+# from app import db
+# from app.models import MenjinDeletionRequest
 import pyodbc
 import time
 import json
@@ -220,6 +220,7 @@ def get_control_seg_details_by_id(control_seg_id, conn_to_use=None):
         if cursor: cursor.close()
         if not is_external_conn and conn: conn.close()
     return seg_data
+    
 
 def add_pending_action(action_type, **kwargs):
     conn = get_db_connection()
@@ -282,6 +283,7 @@ def cancel_pending_action_in_db(action_id):
 def index_page(): 
     return redirect(url_for('menjin.list_users_page'))
 
+
 @bp.route('/users', methods=['GET'])
 @login_required # <-- 应用登录保护
 def list_users_page():
@@ -305,6 +307,9 @@ def list_users_page():
                            users=initial_users, 
                            departments=departments, 
                            title="用户查询")
+
+
+
 
 @bp.route('/api/users', methods=['GET'])
 @login_required 
@@ -338,6 +343,8 @@ def add_user_page():
 @bp.route('/users/<string:consumer_no>/delete/request', methods=['POST'])
 @login_required
 def request_delete_user(consumer_no):
+    from app import db
+    from app.models import MenjinDeletionRequest
     user_details = get_user_details_by_no(consumer_no)
     if not user_details:
         flash(f"工号为 '{consumer_no}' 的门禁用户不存在。", "warning")

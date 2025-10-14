@@ -347,20 +347,15 @@ def new_user_request():
 @bp.route('/my_requests')
 @login_required
 def my_requests():
-    """显示当前用户提交的所有申请记录"""
     add_reqs = UserRequest.query.filter_by(requested_by_id=current_user.id).order_by(UserRequest.request_date.desc()).all()
-    del_reqs = DeletionRequest.query.filter_by(requested_by_id=current_user.id).order_by(DeletionRequest.request_date.desc()).all()
+    disable_reqs = DisableRequest.query.filter_by(requested_by_id=current_user.id).order_by(DisableRequest.request_date.desc()).all()
     role_change_reqs = RoleChangeRequest.query.filter_by(requested_by_id=current_user.id).order_by(RoleChangeRequest.request_date.desc()).all()
-    
-    # --- 核心修正：查询并传递 all_systems ---
-    # 创建一个以 system.id 为键的字典，方便在模板中通过 ID 快速查找系统对象
     all_systems = {s.id: s for s in System.query.all()}
-    
     return render_template('my_requests.html', title='我的申请记录',
                            add_requests=add_reqs,
-                           del_requests=del_reqs,
+                           disable_requests=disable_reqs, # <-- 修正
                            role_change_requests=role_change_reqs,
-                           all_systems=all_systems) # <-- 传递给模板
+                           all_systems=all_systems)
 
 @bp.route('/my_requests/<req_type>/<int:request_id>/cancel', methods=['POST'])
 @login_required
@@ -368,7 +363,7 @@ def cancel_my_request(req_type, request_id):
     """处理普通用户撤销自己的待处理申请"""
     model_map = {
         'add': UserRequest,
-        'delete': DeletionRequest,
+        'disable': DisableRequest,
         'role_change': RoleChangeRequest
     }
     Model = model_map.get(req_type)
@@ -458,29 +453,23 @@ def request_person_disable(chinese_name):
     return redirect(url_for('routes.user_directory'))
 
 
-@bp.route('/user/request_partial_deletion/<string:chinese_name>', methods=['POST'])
+@bp.route('/user/request_partial_disable/<string:chinese_name>', methods=['POST'])
 @login_required
-def request_partial_deletion(chinese_name):
+def request_partial_disable(chinese_name):
     comp_link_ids = request.form.getlist('computer_links', type=int)
     ws_link_ids = request.form.getlist('workstation_links', type=int)
-
     if not comp_link_ids and not ws_link_ids:
-        flash('您没有选择任何要删除的权限。', 'warning')
+        flash('您没有选择任何要禁用的权限。', 'warning')
         return redirect(url_for('routes.user_directory'))
-
     comp_links_info = []
     if comp_link_ids:
         links = SystemUser.query.filter(SystemUser.id.in_(comp_link_ids)).all()
-        for link in links:
-            comp_links_info.append({"id": link.id, "system": link.system.name, "role": link.system_role})
-
+        for link in links: comp_links_info.append({"id": link.id, "system": link.system.name, "role": link.system_role})
     ws_links_info = []
     if ws_link_ids:
         links = WorkstationUser.query.filter(WorkstationUser.id.in_(ws_link_ids)).all()
-        for link in links:
-            ws_links_info.append({"id": link.id, "system": link.system.name, "role": link.role.name})
-
-    new_req = PartialDeletionRequest(
+        for link in links: ws_links_info.append({"id": link.id, "system": link.system.name, "role": link.role.name})
+    new_req = PartialDisableRequest(
         requested_by_id=current_user.id,
         chinese_name=chinese_name,
         system_user_links=json.dumps(comp_links_info) if comp_links_info else None,
@@ -488,28 +477,28 @@ def request_partial_deletion(chinese_name):
     )
     db.session.add(new_req)
     db.session.commit()
-    flash(f'为用户 “{chinese_name}” 删除部分权限的申请已提交。', 'success')
+    flash(f'为用户 “{chinese_name}” 禁用部分权限的申请已提交。', 'success')
     return redirect(url_for('routes.user_directory'))
+
 
 @bp.route('/admin/requests')
 @login_required
 @admin_required
 def pending_requests():
     add_reqs = UserRequest.query.filter_by(status='pending').order_by(UserRequest.request_date.desc()).all()
-    del_reqs = DeletionRequest.query.filter_by(status='pending').order_by(DeletionRequest.request_date.desc()).all()
+    # 核心修正：使用新的模型名 DisableRequest
+    disable_reqs = DisableRequest.query.filter_by(status='pending').order_by(DisableRequest.request_date.desc()).all()
     role_change_reqs = RoleChangeRequest.query.filter_by(status='pending').order_by(RoleChangeRequest.request_date.desc()).all()
-    
-    # 2. 查询待处理的门禁删除申请
     menjin_del_reqs = MenjinDeletionRequest.query.filter_by(status='pending').order_by(MenjinDeletionRequest.request_date.desc()).all()
-    partial_del_reqs = PartialDeletionRequest.query.filter_by(status='pending').order_by(PartialDeletionRequest.request_date.desc()).all()
-
+    partial_disable_reqs = PartialDisableRequest.query.filter_by(status='pending').order_by(PartialDisableRequest.request_date.desc()).all()
+    
     all_systems = {s.id: s for s in System.query.all()}
     return render_template('admin_pending_requests.html', title='待执行申请', 
                            add_requests=add_reqs, 
-                           del_requests=del_reqs, 
+                           disable_requests=disable_reqs, # 核心修正：传递新的变量名
                            role_change_requests=role_change_reqs,
-                           menjin_del_requests=menjin_del_reqs, 
-                           partial_del_requests=partial_del_reqs,# <-- 传递给模板
+                           menjin_del_requests=menjin_del_reqs,
+                           partial_disable_requests=partial_disable_reqs,
                            all_systems=all_systems)
 @bp.route('/admin/requests/add/<int:request_id>/approve', methods=['POST'])
 @login_required
@@ -564,39 +553,51 @@ def approve_menjin_del_request(request_id):
         
     return redirect(url_for('routes.pending_requests'))
 
-@bp.route('/admin/requests/partial_delete/<int:request_id>/approve', methods=['POST'])
+@bp.route('/admin/requests/partial_disable/<int:request_id>/approve', methods=['POST'])
 @login_required
 @admin_required
-def approve_partial_del_request(request_id):
-    req = PartialDeletionRequest.query.get_or_404(request_id)
-    
+def approve_partial_disable_request(request_id):
+    req = PartialDisableRequest.query.get_or_404(request_id)
     comp_links_info = req.get_system_links()
     ws_links_info = req.get_workstation_links()
-    
-    deleted_count = 0
+    disabled_count = 0
     if comp_links_info:
-        ids_to_delete = [link['id'] for link in comp_links_info]
-        # 对于批量删除，synchronize_session=False 是推荐的做法
-        deleted_count += SystemUser.query.filter(SystemUser.id.in_(ids_to_delete)).delete(synchronize_session=False)
-
+        ids_to_disable = [link['id'] for link in comp_links_info]
+        disabled_count += SystemUser.query.filter(SystemUser.id.in_(ids_to_disable)).update({'is_active': False}, synchronize_session=False)
     if ws_links_info:
-        ids_to_delete = [link['id'] for link in ws_links_info]
-        deleted_count += WorkstationUser.query.filter(WorkstationUser.id.in_(ids_to_delete)).delete(synchronize_session=False)
-        
+        ids_to_disable = [link['id'] for link in ws_links_info]
+        disabled_count += WorkstationUser.query.filter(WorkstationUser.id.in_(ids_to_disable)).update({'is_active': False}, synchronize_session=False)
     req.status = 'completed'
     db.session.commit()
-    flash(f'已为用户 “{req.chinese_name}” 成功移除了 {deleted_count} 项系统权限。', 'success')
+    flash(f'已为用户 “{req.chinese_name}” 成功禁用了 {disabled_count} 项系统权限。', 'success')
     return redirect(url_for('routes.pending_requests'))
 
-@bp.route('/admin/requests/partial_delete/<int:request_id>/cancel', methods=['POST'])
+@bp.route('/admin/requests/partial_disable/<int:request_id>/cancel', methods=['POST'])
 @login_required
 @admin_required
-def cancel_partial_del_request(request_id):
-    req = PartialDeletionRequest.query.get_or_404(request_id)
+def cancel_partial_disable_request(request_id):
+    # 查询的模型应该是 PartialDisableRequest，确保你的 models.py 中已经重命名
+    # 如果还没有，请将下面的 PartialDisableRequest 改回 PartialDeletionRequest
+    req = PartialDisableRequest.query.get_or_404(request_id)
+    
     if req.status == 'pending':
-        db.session.delete(req)
-        db.session.commit()
-        flash(f'已撤销对 “{req.chinese_name}” 的部分删除申请。', 'success')
+        try:
+            # 在删除对象前，先把名字存下来用于 flash 消息
+            chinese_name_to_flash = req.chinese_name
+            
+            db.session.delete(req)
+            db.session.commit()
+            
+            # 更新 flash 消息文本
+            flash(f'已成功撤销对 “{chinese_name_to_flash}” 的部分禁用申请。', 'success')
+        except Exception as e:
+            db.session.rollback()
+            # 在后台记录详细错误
+            print(f"Error cancelling partial disable request {request_id}: {e}")
+            flash('撤销申请时发生错误，请联系管理员。', 'danger')
+    else:
+        flash('无法撤销一个已被处理的申请。', 'warning')
+        
     return redirect(url_for('routes.pending_requests'))
 
 
@@ -651,24 +652,30 @@ def cancel_add_request(request_id):
         flash('无法撤销一个已处理的申请。', 'warning')
     return redirect(url_for('routes.pending_requests'))
 
-@bp.route('/admin/requests/delete/<int:request_id>/approve', methods=['POST'])
+@bp.route('/admin/requests/disable/<int:request_id>/approve', methods=['POST'])
 @login_required
 @admin_required
-def approve_del_request(request_id):
-    req = DeletionRequest.query.get_or_404(request_id)
-    account_to_delete = req.account_to_delete
-    SystemUser.query.filter_by(account_id=account_to_delete.id).delete()
-    WorkstationUser.query.filter_by(account_id=account_to_delete.id).delete()
+def approve_disable_request(request_id):
+    req = DisableRequest.query.get_or_404(request_id)
+    account_to_disable = req.account_to_disable
+    
+    # 核心修正：添加 synchronize_session=False 参数
+    SystemUser.query.filter_by(account_id=account_to_disable.id).update({'is_active': False}, synchronize_session=False)
+    WorkstationUser.query.filter_by(account_id=account_to_disable.id).update({'is_active': False}, synchronize_session=False)
+    
     req.status = 'completed'
-    db.session.commit()
-    flash(f'用户 "{account_to_delete.chinese_name}" 的所有系统权限已移除。', 'success')
+    
+    # 现在，commit 会将上面所有的更改（包括两个update和status的更改）一并提交
+    db.session.commit() 
+    
+    flash(f'用户 "{account_to_disable.chinese_name}" 的所有系统权限已禁用。', 'success')
     return redirect(url_for('routes.pending_requests'))
 
 @bp.route('/admin/requests/delete/<int:request_id>/cancel', methods=['POST'])
 @login_required
 @admin_required
 def cancel_del_request(request_id):
-    req = DeletionRequest.query.get_or_404(request_id)
+    req = DisableRequest.query.get_or_404(request_id)
     if req.status == 'pending':
         user_name_to_flash = req.account_to_delete.chinese_name
         db.session.delete(req)
