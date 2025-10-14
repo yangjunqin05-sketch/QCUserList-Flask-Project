@@ -4,8 +4,8 @@ from flask import render_template, flash, redirect, url_for, request, Blueprint,
 from flask_login import current_user, login_user, logout_user, login_required
 from app import db
 from app.models import (User, System, SystemAccount, CheckHistory, SystemUser, WorkstationUser, 
-                        SystemRole, DeletionRequest, Group, Script, Job, UserRequest,RoleChangeRequest,
-                        MenjinDeletionRequest, PartialDeletionRequest)
+                        SystemRole,DisableRequest, Group, Script, Job, UserRequest,RoleChangeRequest,
+                        MenjinDeletionRequest, PartialDisableRequest)
 from app.forms import (LoginForm, SearchUserForm, EditSystemForm, AssignGroupForm, 
                        AddSystemForm, GroupForm, ScriptForm, ExecuteJobForm,
                        UserRequestForm, AdminUserForm, AddComputerUserForm, 
@@ -129,6 +129,19 @@ def system_detail(system_id):
     return render_template('system_detail.html', title=system.name, system=system, scripts=scripts,
                            add_sys_user_form=form_computer, add_ws_user_form=form_workstation,execute_form=execute_form)
 
+@bp.route('/system/enable_user_link/<link_type>/<int:link_id>', methods=['POST'])
+@login_required
+@admin_required
+def enable_user_link(link_type, link_id):
+    Model = SystemUser if link_type == 'computer' else WorkstationUser
+    link = Model.query.get_or_404(link_id)
+    link.is_active = True
+    db.session.commit()
+    flash(f"用户 “{link.account.chinese_name}” 在系统 “{link.system.name}” 中的权限已重新启用。", "success")
+    return redirect(url_for('routes.system_detail', system_id=link.system_id))
+
+
+
 @bp.route('/system/<int:system_id>/batch_import', methods=['GET', 'POST'])
 @login_required
 @admin_required
@@ -242,7 +255,7 @@ def user_directory():
     accounts_by_person = defaultdict(list)
     for acc in accounts:
         # 确保只显示那些至少在一个系统中有权限的账户
-        if acc.system_access.first() or acc.workstation_access.first():
+        if acc.system_access.filter_by(is_active=True).first() or acc.workstation_access.filter_by(is_active=True).first():
             accounts_by_person[acc.chinese_name].append(acc)
 
     return render_template('user_directory.html', title='全系统用户目录', 
@@ -424,32 +437,24 @@ def new_role_change_request():
 
 
 # --- 管理员功能路由 ---
-@bp.route('/user_requests/delete_person/<string:chinese_name>', methods=['POST'])
+@bp.route('/user_requests/disable_person/<string:chinese_name>', methods=['POST'])
 @login_required
-def request_person_deletion(chinese_name):
-    """为一个“自然人”（同中文名）的所有系统账户申请删除"""
-    # 找出所有同中文名的系统账户
-    accounts_to_delete = SystemAccount.query.filter_by(chinese_name=chinese_name).all()
-    
-    if not accounts_to_delete:
+def request_person_disable(chinese_name):
+    accounts_to_disable = SystemAccount.query.filter_by(chinese_name=chinese_name).all()
+    if not accounts_to_disable:
         flash(f'找不到中文名为 “{chinese_name}” 的用户。', 'danger')
         return redirect(url_for('routes.user_directory'))
-
     created_count = 0
-    for account in accounts_to_delete:
-        # 检查是否已有待处理的申请，避免重复
-        if not DeletionRequest.query.filter_by(account_to_delete_id=account.id, status='pending').first():
-            new_request = DeletionRequest(account_to_delete_id=account.id, requested_by_id=current_user.id)
+    for account in accounts_to_disable:
+        if not DisableRequest.query.filter_by(account_to_disable_id=account.id, status='pending').first():
+            new_request = DisableRequest(account_to_disable_id=account.id, requested_by_id=current_user.id)
             db.session.add(new_request)
             created_count += 1
-    
     db.session.commit()
-
     if created_count > 0:
-        flash(f'已为 “{chinese_name}” 的 {created_count} 个系统账户提交删除申请。', 'success')
+        flash(f'已为 “{chinese_name}” 的所有活动系统账户提交禁用申请。', 'success')
     else:
-        flash(f'“{chinese_name}” 的所有系统账户都已有待处理的删除申请。', 'warning')
-        
+        flash(f'“{chinese_name}” 的所有活动系统账户都已有待处理的禁用申请。', 'warning')
     return redirect(url_for('routes.user_directory'))
 
 

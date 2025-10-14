@@ -42,7 +42,7 @@ def create_app(config_class=Config):
         # 3. 定义上下文处理器 (核心修正区域)
         
         # 关键修正 1: 在这里导入所有需要计数的模型
-        from app.models import UserRequest, DeletionRequest, RoleChangeRequest, MenjinDeletionRequest
+        from app.models import UserRequest, DisableRequest, RoleChangeRequest, MenjinDeletionRequest
 
         @app.context_processor
         def inject_pending_requests_count():

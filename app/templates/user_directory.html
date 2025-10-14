@@ -60,15 +60,12 @@
 
                             {% if current_user.role == 'admin' %}
                             <td rowspan="{{ accounts|length }}" style="vertical-align: middle;">
-                                <!-- 全量删除按钮 -->
-                                <form action="{{ url_for('routes.request_person_deletion', chinese_name=chinese_name) }}" method="POST" 
-                                      onsubmit="confirmSmartDeletion(event, '{{ chinese_name }}')" class="d-inline">
-                                    <button type="submit" class="btn btn-danger btn-sm">申请删除</button>
+                                <!-- 修改按钮文字和路由 -->
+                                <form action="{{ url_for('routes.request_person_disable', chinese_name=chinese_name) }}" method="POST" onsubmit="return confirm('警告：确定要为 “{{ chinese_name }}” 的所有活动账户申请禁用吗？')" class="d-inline">
+                                    <button type="submit" class="btn btn-danger btn-sm">申请禁用</button>
                                 </form>
-                                
-                                <!-- 新增：部分删除按钮 -->
-                                <button type="button" class="btn btn-warning btn-sm d-inline ms-1" onclick="openPartialDeleteModal('{{ chinese_name }}')">
-                                    部分删除
+                                <button type="button" class="btn btn-warning btn-sm d-inline ms-1" onclick="openPartialDisableModal('{{ chinese_name }}')">
+                                    部分禁用
                                 </button>
                             </td>
                             {% endif %}
@@ -105,12 +102,12 @@
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="partialDeleteModalLabel">为用户 <span id="modal-user-name" class="fw-bold"></span> 申请部分权限删除</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <h5 class="modal-title" id="partialDisableModalLabel">为用户 <span id="modal-user-name"></span> 申请部分权限禁用</h5>
+        ...
       </div>
       <form id="modal-form" method="POST">
           <div class="modal-body">
-            <p class="text-muted">请勾选需要删除的权限：</p>
+            <p class="text-muted">请勾选需要禁用的权限：</p>
             <div id="modal-body-content">
                 <!-- JavaScript会在这里动态填充复选框 -->
                 <div class="text-center my-3">
@@ -145,11 +142,11 @@ const modalUserName = document.getElementById('modal-user-name');
 const modalBodyContent = document.getElementById('modal-body-content');
 const modalForm = document.getElementById('modal-form');
 
-async function openPartialDeleteModal(chineseName) {
+async function openPartialDisableModal(chineseName)  {
     // 1. 重置并显示模态框
     modalUserName.textContent = chineseName;
     modalBodyContent.innerHTML = `<div class="text-center my-3"><div class="spinner-border" role="status"></div></div>`;
-    modalForm.action = `/user/request_partial_deletion/${encodeURIComponent(chineseName)}`;
+    modalForm.action = `/user/request_partial_disable/${encodeURIComponent(chinese_name)}`;
     partialDeleteModal.show();
 
     // 2. 异步获取该用户的所有权限

@@ -59,6 +59,7 @@ class SystemUser(db.Model):
     system_id = db.Column(db.Integer, db.ForeignKey('system.id'), nullable=False)
     account_id = db.Column(db.Integer, db.ForeignKey('system_accounts.id'), nullable=False)
     system_role = db.Column(db.String(64))
+    is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
 
 class WorkstationUser(db.Model):
     __tablename__ = 'workstation_user_link'
@@ -67,6 +68,7 @@ class WorkstationUser(db.Model):
     account_id = db.Column(db.Integer, db.ForeignKey('system_accounts.id'), nullable=False)
     role_id = db.Column(db.Integer, db.ForeignKey('system_role.id'), nullable=False)
     role = db.relationship('SystemRole')
+    is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
 
 
 # --- 申请模型 (修改关联) ---
@@ -84,15 +86,14 @@ class UserRequest(db.Model):
     status = db.Column(db.String(20), default='pending', index=True)
     requested_by = db.relationship('User', foreign_keys=[requested_by_id])
 
-class DeletionRequest(db.Model):
-    # 这个模型用于用户提交的“删除系统用户”的申请
-    __tablename__ = 'deletion_requests'
+class DisableRequest(db.Model):
+    __tablename__ = 'disable_requests' # <-- 表名变更
     id = db.Column(db.Integer, primary_key=True)
-    account_to_delete_id = db.Column(db.Integer, db.ForeignKey('system_accounts.id'), nullable=False)
+    account_to_disable_id = db.Column(db.Integer, db.ForeignKey('system_accounts.id'), nullable=False) # <-- 字段名变更
     requested_by_id = db.Column(db.Integer, db.ForeignKey('platform_users.id'), nullable=False)
     request_date = db.Column(db.Date, default=date.today)
     status = db.Column(db.String(20), default='pending')
-    account_to_delete = db.relationship('SystemAccount', foreign_keys=[account_to_delete_id])
+    account_to_disable = db.relationship('SystemAccount', foreign_keys=[account_to_disable_id]) # <-- 关系名变更
     requested_by = db.relationship('User', foreign_keys=[requested_by_id])
 
 
@@ -253,30 +254,18 @@ class MenjinDeletionRequest(db.Model):
 
 
 # --- 新增：部分删除申请模型 ---
-class PartialDeletionRequest(db.Model):
-    __tablename__ = 'partial_deletion_requests'
+class PartialDisableRequest(db.Model):
+    __tablename__ = 'partial_disable_requests' # <-- 表名变更
     id = db.Column(db.Integer, primary_key=True)
-    
-    # 申请的发起人
     requested_by_id = db.Column(db.Integer, db.ForeignKey('platform_users.id'), nullable=False)
-    
-    # 申请的目标用户 (为了方便显示)
     chinese_name = db.Column(db.String(64), nullable=False)
-    
-    # 待删除的权限链接 (以 JSON 格式存储)
-    # 格式: [{"id": 1, "system": "系统名", "role": "角色名"}, ...]
     system_user_links = db.Column(db.Text, nullable=True)
     workstation_user_links = db.Column(db.Text, nullable=True)
-
-    # 申请的状态
     request_date = db.Column(db.DateTime, default=datetime.utcnow)
     status = db.Column(db.String(20), default='pending', index=True)
-
-    # 关系
-    requested_by = db.relationship('User', backref='partial_deletion_requests')
+    requested_by = db.relationship('User', backref='partial_disable_requests') # <-- 关系名变更
 
     def get_system_links(self):
         return json.loads(self.system_user_links) if self.system_user_links else []
-
     def get_workstation_links(self):
         return json.loads(self.workstation_user_links) if self.workstation_user_links else []
