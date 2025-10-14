@@ -1,0 +1,198 @@
+<!-- menjin/templates/users_list_simple.html (修复“修改部门”功能版) -->
+
+{% extends "layout.html" %}
+
+{% block title %}用户查询{% endblock %}
+
+{% block menjin_content %}
+    <h2 class="mb-4">用户列表</h2>
+
+    <!-- 筛选和查询区域 -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3 align-items-center">
+                <div class="col-md-5">
+                    <div class="form-floating">
+                        <select id="department_id" name="department_id" class="form-select">
+                            <option value="" selected>-- 所有部门 --</option>
+                            {% for dept in departments %}
+                                <option value="{{ dept.f_GroupID }}">{{ dept.f_GroupName }}</option>
+                            {% endfor %}
+                        </select>
+                        <label for="department_id">按部门筛选</label>
+                    </div>
+                </div>
+                <div class="col-md-5">
+                    <div class="form-floating">
+                        <input type="search" id="search_name" name="search_name" class="form-control" 
+                               placeholder="输入姓名关键字..." value="{{ request.args.get('search_name', '') }}">
+                        <label for="search_name">按姓名模糊搜索</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 用户列表表格 -->
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>工号</th>
+                    <th>姓名</th>
+                    <th>卡号</th>
+                    <th>部门</th>
+                    <th>权限类型</th>
+                    <th style="width: 220px;">操作</th>
+                </tr>
+            </thead>
+            <tbody id="user-table-body">
+                {# 初始加载时，这部分代码会正确渲染所有功能 #}
+                {% for user in users %}
+                <tr>
+                    <td>{{ user.f_ConsumerNO }}</td>
+                    <td>{{ user.f_ConsumerName }}</td>
+                    <td>{{ user.f_CardNO if user.f_CardNO is not none else '' }}</td>
+                    <td>
+                        <div id="dept-display-{{ user.f_ConsumerNO }}">{{ user.DepartmentName or '未分配' }}</div>
+                        <div id="dept-edit-{{ user.f_ConsumerNO }}" style="display: none;">
+                            <form action="{{ url_for('menjin.update_department', consumer_no=user.f_ConsumerNO) }}" method="POST">
+                                <div class="input-group input-group-sm">
+                                    <select name="department_id" class="form-select">
+                                        <option value="">-- 未分配 --</option>
+                                        {% for dept in departments %}
+                                        <option value="{{ dept.f_GroupID }}" {% if dept.f_GroupID == user.DepartmentID %}selected{% endif %}>
+                                            {{ dept.f_GroupName }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    <button type="submit" class="btn btn-success">保存</button>
+                                    <button type="button" class="btn btn-secondary" onclick="toggleEditMode('{{ user.f_ConsumerNO }}', false)">取消</button>
+                                </div>
+                            </form>
+                        </div>
+                    </td>
+                    <td>{{ user.PrivilegeType if user.PrivilegeType is not none else '未指定' }}</td>
+                    <td class="actions">
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="btn-modify-{{ user.f_ConsumerNO }}" onclick="toggleEditMode('{{ user.f_ConsumerNO }}', true)">
+                            修改部门
+                        </button>
+                        <form method="POST" action="{{ url_for('menjin.request_delete_user', consumer_no=user.f_ConsumerNO) }}"
+                              onsubmit="return confirmAction('确定要将删除用户 [{{ user.f_ConsumerName }}] (工号: {{ user.f_ConsumerNO }}) 的请求加入待处理列表吗？');"
+                              style="display: inline;" class="ms-1">
+                            <button type="submit" class="btn btn-danger btn-sm">请求删除用户</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+function toggleEditMode(consumerNO, showEdit) {
+    const displayDiv = document.getElementById(`dept-display-${consumerNO}`);
+    const editDiv = document.getElementById(`dept-edit-${consumerNO}`);
+    const modifyButton = document.getElementById(`btn-modify-${consumerNO}`);
+
+    if (showEdit) {
+        displayDiv.style.display = 'none';
+        if(modifyButton) modifyButton.style.display = 'none';
+        editDiv.style.display = 'block';
+    } else {
+        displayDiv.style.display = 'block';
+        if(modifyButton) modifyButton.style.display = 'inline-block';
+        editDiv.style.display = 'none';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const departmentSelect = document.getElementById('department_id');
+    const nameInput = document.getElementById('search_name');
+    const tableBody = document.getElementById('user-table-body');
+
+    function throttle(func, delay) {
+        let timeout = null;
+        return function(...args) {
+            if (!timeout) {
+                timeout = setTimeout(() => {
+                    func.apply(this, args);
+                    timeout = null;
+                }, delay);
+            }
+        };
+    }
+
+    async function fetchUsers() {
+        const departmentId = departmentSelect.value;
+        const searchName = nameInput.value;
+        tableBody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">正在加载...</td></tr>`;
+
+        try {
+            const params = new URLSearchParams({ department_id: departmentId, search_name: searchName });
+            const response = await fetch(`{{ url_for('menjin.api_get_users') }}?${params}`);
+            if (!response.ok) { throw new Error('网络请求失败!'); }
+            
+            const users = await response.json();
+            // 核心修正 1: 将部门列表数据注入到JavaScript中
+            const allDepartments = {{ departments|tojson }};
+
+            tableBody.innerHTML = '';
+            if (users.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">未找到符合条件的用户。</td></tr>`;
+                return;
+            }
+
+            users.forEach(user => {
+                // 核心修正 2: 为行内编辑表单动态生成部门选项
+                let departmentOptions = '<option value="">-- 未分配 --</option>';
+                allDepartments.forEach(dept => {
+                    const selected = (dept.f_GroupID == user.DepartmentID) ? 'selected' : '';
+                    departmentOptions += `<option value="${dept.f_GroupID}" ${selected}>${dept.f_GroupName}</option>`;
+                });
+
+                // 核心修正 3: 在动态生成的行中，完整地包含“修改部门”和“请求删除”的所有HTML结构
+                const row = `
+                    <tr>
+                        <td>${user.f_ConsumerNO}</td>
+                        <td>${user.f_ConsumerName}</td>
+                        <td>${user.f_CardNO || ''}</td>
+                        <td>
+                            <div id="dept-display-${user.f_ConsumerNO}">${user.DepartmentName || '未分配'}</div>
+                            <div id="dept-edit-${user.f_ConsumerNO}" style="display: none;">
+                                <form action="/menjin/users/${user.f_ConsumerNO}/update_department" method="POST">
+                                    <div class="input-group input-group-sm">
+                                        <select name="department_id" class="form-select">${departmentOptions}</select>
+                                        <button type="submit" class="btn btn-success">保存</button>
+                                        <button type="button" class="btn btn-secondary" onclick="toggleEditMode('${user.f_ConsumerNO}', false)">取消</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </td>
+                        <td>${user.PrivilegeType || '未指定'}</td>
+                        <td class="actions">
+                             <button type="button" class="btn btn-outline-primary btn-sm" id="btn-modify-${user.f_ConsumerNO}" onclick="toggleEditMode('${user.f_ConsumerNO}', true)">修改部门</button>
+                             <form method="POST" action="/menjin/users/${user.f_ConsumerNO}/delete/request" onsubmit="return confirmAction('确定要将删除用户 [${user.f_ConsumerName}] (工号: ${user.f_ConsumerNO}) 的请求加入待处理列表吗？');" style="display: inline;" class="ms-1">
+                                <button type="submit" class="btn btn-danger btn-sm">请求删除用户</button>
+                            </form>
+                        </td>
+                    </tr>
+                `;
+                tableBody.insertAdjacentHTML('beforeend', row);
+            });
+        } catch (error) {
+            console.error('获取用户数据时出错:', error);
+            tableBody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">加载数据失败...</td></tr>`;
+        }
+    }
+
+    departmentSelect.addEventListener('change', fetchUsers);
+    const throttledFetch = throttle(fetchUsers, 400);
+    nameInput.addEventListener('input', throttledFetch);
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('search_name')) { fetchUsers(); }
+});
+</script>
+{% endblock %}

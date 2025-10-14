@@ -1,0 +1,56 @@
+<!-- app/templates/edit_user.html -->
+
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        {% if user %}
+        <h2 class="mb-4">编辑用户: <span class="text-muted">{{ user.username }}</span></h2>
+        {% else %}
+        <h2 class="mb-4">创建新用户</h2>
+        {% endif %}
+        
+        <div class="card">
+            <div class="card-body">
+                <form action="" method="post" novalidate>
+                    {{ form.hidden_tag() }}
+                    <div class="mb-3">
+                        {{ form.username.label(class="form-label") }}
+                        {{ form.username(class="form-control") }}
+                         {% if form.username.errors %}<div class="invalid-feedback d-block">{{ form.username.errors[0] }}</div>{% endif %}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.chinese_name.label(class="form-label") }}
+                        {{ form.chinese_name(class="form-control") }}
+                         {% if form.chinese_name.errors %}<div class="invalid-feedback d-block">{{ form.chinese_name.errors[0] }}</div>{% endif %}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.role.label(class="form-label") }}
+                        {{ form.role(class="form-select") }}
+                    </div>
+                    <hr>
+                    <div class="mb-3">
+                        <label class="form-label">密码设置</label>
+                        <div class="form-text">{% if user %}留空则不修改密码。{% else %}新用户必须设置密码。{% endif %}</div>
+                        {{ form.password(class="form-control mt-2", placeholder="输入新密码") }}
+                         {% if form.password.errors %}<div class="invalid-feedback d-block">{{ form.password.errors[0] }}</div>{% endif %}
+                        {{ form.password2(class="form-control mt-2", placeholder="再次输入新密码") }}
+                         {% if form.password2.errors %}<div class="invalid-feedback d-block">{{ form.password2.errors[0] }}</div>{% endif %}
+                    </div>
+                    <hr>
+                    <div class="form-check form-switch mb-3">
+                         {{ form.is_active(class="form-check-input") }}
+                         {{ form.is_active.label(class="form-check-label") }}
+                    </div>
+                    
+                    <div class="mt-4">
+                        {{ form.submit(class="btn btn-primary") }}
+                        <a href="{{ url_for('routes.manage_users') }}" class="btn btn-secondary">取消</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

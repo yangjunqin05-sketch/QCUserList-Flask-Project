@@ -1,0 +1,123 @@
+<!-- app/templates/my_requests.html -->
+
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">我的申请记录</h1>
+
+    <!-- 用户新增申请记录 -->
+    <div class="card mb-4">
+        <div class="card-header"><h4><i class="bi bi-person-plus-fill me-2"></i>我提交的新增申请</h4></div>
+        <div class="card-body">
+            {% if add_requests %}
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>申请日期</th>
+                            <th>申请用户</th>
+                            <!-- 新增列 -->
+                            <th>目标系统</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for req in add_requests %}
+                        <tr>
+                            <td>{{ req.request_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>{{ req.chinese_name }} ({{ req.username }})</td>
+                            <!-- 新增列的数据 -->
+                            <td>
+                                {% set system = all_systems.get(req.target_systems|int) %}
+                                {{ system.name if system else '未知系统' }}
+                            </td>
+                            <td>
+                               {% if req.status == 'pending' %}<span class="badge bg-warning text-dark">待处理</span>
+                               {% elif req.status == 'completed' %}<span class="badge bg-success">已完成</span>
+                               {% else %}<span class="badge bg-secondary">{{ req.status }}</span>{% endif %}
+                            </td>
+                            <td>
+                                {% if req.status == 'pending' %}
+                                <form action="{{ url_for('routes.cancel_my_request', req_type='add', request_id=req.id) }}" method="POST">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('确定要撤销此申请吗？')">撤销</button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}<p class="text-muted">您没有提交过用户新增申请。</p>{% endif %}
+        </div>
+    </div>
+    
+    <!-- 用户删除申请记录 -->
+    <div class="card mb-4">
+        <div class="card-header"><h4><i class="bi bi-person-dash-fill me-2"></i>我提交的删除申请</h4></div>
+        <div class="card-body">
+            {% if del_requests %}
+            <table class="table table-sm table-hover align-middle">
+                <thead><tr><th>申请日期</th><th>申请删除的用户</th><th>状态</th><th>操作</th></tr></thead>
+                <tbody>
+                    {% for req in del_requests %}
+                    <tr>
+                        <td>{{ req.request_date.strftime('%Y-%m-%d') }}</td>
+                        <td>{{ req.account_to_delete.chinese_name }} ({{ req.account_to_delete.username }})</td>
+                        <td>
+                           {% if req.status == 'pending' %}<span class="badge bg-warning text-dark">待处理</span>
+                           {% elif req.status == 'completed' %}<span class="badge bg-success">已完成</span>
+                           {% else %}<span class="badge bg-secondary">{{ req.status }}</span>{% endif %}
+                        </td>
+                        <td>
+                            {% if req.status == 'pending' %}
+                            <form action="{{ url_for('routes.cancel_my_request', req_type='delete', request_id=req.id) }}" method="POST">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('确定要撤销此申请吗？')">撤销</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}<p class="text-muted">您没有提交过用户删除申请。</p>{% endif %}
+        </div>
+    </div>
+
+    <!-- 角色修改申请记录 -->
+    <div class="card">
+        <div class="card-header"><h4><i class="bi bi-person-gear me-2"></i>我提交的角色修改申请</h4></div>
+        <div class="card-body">
+            {% if role_change_requests %}
+             <table class="table table-sm table-hover align-middle">
+                <thead><tr><th>申请日期</th><th>目标用户</th><th>目标系统</th><th>修改内容</th><th>状态</th><th>操作</th></tr></thead>
+                <tbody>
+                    {% for req in role_change_requests %}
+                    <tr>
+                        <td>{{ req.request_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>{{ req.account.chinese_name }} ({{ req.account.username }})</td>
+                        <td>{{ req.system.name }}</td>
+                        <td><span class="text-muted">{{ req.current_role }}</span> &rarr; <strong>{{ req.new_role }}</strong></td>
+                        <td>
+                           {% if req.status == 'pending' %}<span class="badge bg-warning text-dark">待处理</span>
+                           {% elif req.status == 'completed' %}<span class="badge bg-success">已完成</span>
+                           {% else %}<span class="badge bg-secondary">{{ req.status }}</span>{% endif %}
+                        </td>
+                        <td>
+                            {% if req.status == 'pending' %}
+                            <form action="{{ url_for('routes.cancel_my_request', req_type='role_change', request_id=req.id) }}" method="POST">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('确定要撤销此申请吗？')">撤销</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}<p class="text-muted">您没有提交过角色修改申请。</p>{% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,168 @@
+<!-- menjin/templates/privileges_query.html (恢复为后端过滤逻辑) -->
+
+{% extends "layout.html" %}
+
+{% block title %}权限查询{% endblock %}
+
+{% block menjin_content %}
+    <h2>权限查询</h2>
+    <div class="filter-form">
+        <form method="GET" action="{{ url_for('menjin.privileges_query_page') }}" id="queryForm">
+            <div class="mb-3">
+                <label for="query_type" class="form-label">查询类型:</label>
+                <select id="query_type" name="query_type" class="form-select" onchange="this.form.submit()">
+                    <option value="user" {% if query_type == 'user' %}selected{% endif %}>按用户查询权限</option>
+                    <option value="door" {% if query_type == 'door' %}selected{% endif %}>按门查询用户</option>
+                </select>
+            </div>
+
+            {# --- 按用户查询的字段 --- #}
+            {# 这个区域现在只在 query_type 为 'user' 时显示 #}
+            <div id="user_query_fields" style="display: {% if query_type == 'user' %}flex{% else %}none{% endif %}; flex-wrap: wrap; gap: 15px; width:100%;">
+                <div class="flex-grow-1">
+                    <label for="filter_user_department" class="form-label">筛选用户所属部门:</label>
+                    {# 核心修改：添加 onchange 事件，让选择部门后直接提交表单 #}
+                    <select id="filter_user_department" name="filter_user_department" class="form-select" onchange="this.form.submit()">
+                        <option value="">-- 所有部门 --</option>
+                        {% for dept in departments_for_select %}
+                        <option value="{{ dept.f_GroupID }}" {% if selected_user_department_filter == dept.f_GroupID|string %}selected{% endif %}>
+                            {{ dept.f_GroupName }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="flex-grow-1">
+                    <label for="target_consumer_id" class="form-label">选择用户:</label>
+                    <select id="target_consumer_id" name="target_consumer_id" class="form-select">
+                        <option value="">-- 选择用户 --</option>
+                        {# 这里的用户列表将由后端根据上面选择的部门直接过滤好 #}
+                        {% for u in users_for_select %}
+                            <option value="{{ u.f_ConsumerID }}" {% if selected_consumer_id == u.f_ConsumerID|string %}selected{% endif %}>
+                                {{ u.f_ConsumerName }} ({{ u.f_ConsumerNO }})
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            {# --- 按门查询的字段 --- #}
+            <div id="door_query_fields" style="display: {% if query_type == 'door' %}flex{% else %}none{% endif %}; flex-wrap: wrap; gap: 15px; width:100%;">
+                <div class="flex-grow-1">
+                    <label for="filter_zone_id_for_door_query" class="form-label">筛选门所属区域:</label>
+                    {# 同样为这个 select 添加 onchange 事件 #}
+                    <select id="filter_zone_id_for_door_query" name="filter_zone_id_for_door_query" class="form-select" onchange="this.form.submit()">
+                        <option value="">-- 所有区域 --</option>
+                        {% for zone in zones_for_select %}
+                            <option value="{{ zone.f_ZoneID }}" {% if selected_zone_id_for_door_query == zone.f_ZoneID|string %}selected{% endif %}>{{ zone.f_ZoneName }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                 <div class="flex-grow-1">
+                    <label for="target_door_id" class="form-label">选择门:</label>
+                    <select id="target_door_id" name="target_door_id" class="form-select">
+                        <option value="">-- 选择门 --</option>
+                        {% for door in doors_for_select %}
+                            <option value="{{ door.f_DoorID }}" {% if selected_door_id == door.f_DoorID|string %}selected{% endif %}>
+                                {{ door.f_DoorName }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                 <div class="flex-grow-1">
+                    <label for="filter_department_id_for_door_query" class="form-label">筛选用户所属部门:</label>
+                    <select id="filter_department_id_for_door_query" name="filter_department_id_for_door_query" class="form-select">
+                         <option value="">-- 所有部门 --</option>
+                        {% for dept in departments_for_select %}
+                            <option value="{{ dept.f_GroupID }}" {% if selected_department_id_for_door_query == dept.f_GroupID|string %}selected{% endif %}>{{ dept.f_GroupName }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="mt-3 w-100"><button type="submit" class="btn btn-primary">查询权限</button></div>
+        </form>
+    </div>
+
+    {% if query_target_display_name %}
+        <h3 class="mt-4">查询结果: {{ query_target_display_name }}</h3>
+    {% endif %}
+
+    {% if query_results %}
+        <table class="table table-bordered table-striped mt-3">
+            <thead>
+                <tr>
+                    {% if query_type == 'user' %}
+                    <th>门名称</th>
+                    <th>区域</th>
+                    <th>时段</th>
+                    {% else %}
+                    <th>用户名</th>
+                    <th>工号</th>
+                    <th>所属部门</th>
+                    <th>时段</th>
+                    {% endif %}
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in query_results %}
+                <tr>
+                    {% if query_type == 'user' %}
+                        <td>{{ item.DoorName }}</td>
+                        <td>{{ item.ZoneName or 'N/A' }}</td>
+                        <td>{{ item.ControlSegName or '全时段 (ID: 1)' }}</td>
+                    {% else %}
+                        <td>{{ item.f_ConsumerName }}</td>
+                        <td>{{ item.f_ConsumerNO }}</td>
+                        <td>{{ item.DepartmentName or '未分配' }}</td>
+                        <td>{{ item.ControlSegName or '全时段 (ID: 1)' }}</td>
+                    {% endif %}
+                    <td>
+                        <form method="POST" action="{{ url_for('menjin.request_delete_specific_privilege') }}" onsubmit="return confirm('确定要将此删除权限请求加入待处理列表吗？');">
+                            <input type="hidden" name="consumer_id_to_delete_priv" value="{{ item.f_ConsumerID }}">
+                            <input type="hidden" name="door_id_to_delete_priv" value="{{ item.DoorID }}">
+                            <input type="hidden" name="control_seg_id_to_delete_priv" value="{{ item.ControlSegID if item.ControlSegID is not none else 1 }}">
+                            
+                            <!-- 隐藏字段，用于在提交后保持筛选状态 -->
+                            <input type="hidden" name="current_query_type" value="{{ query_type }}">
+                            <input type="hidden" name="current_target_consumer_id_for_redirect" value="{{ selected_consumer_id or '' }}">
+                            <input type="hidden" name="current_target_door_id_for_redirect" value="{{ selected_door_id or '' }}">
+                            <input type="hidden" name="current_filter_user_department_for_redirect" value="{{ selected_user_department_filter or '' }}">
+                            <input type="hidden" name="current_filter_department_id_for_redirect" value="{{ selected_department_id_for_door_query or '' }}">
+                            <input type="hidden" name="current_filter_zone_id_for_redirect" value="{{ selected_zone_id_for_door_query or '' }}">
+                            
+                            <button type="submit" class="btn btn-warning btn-sm">请求删除</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% elif (request.args.get('target_consumer_id') or request.args.get('target_door_id')) and query_target_display_name %}
+        <p class="mt-3 text-muted">没有找到符合条件的权限数据。</p>
+    {% endif %}
+{% endblock %}
+
+
+{% block scripts_extra %}
+{# 移除所有旧的 JavaScript 代码，因为现在不再需要前端过滤 #}
+<script>
+    // 这段脚本可以保留，用于在切换查询类型时隐藏/显示对应的表单区域
+    // 但因为我们已经在 select 上加了 onchange="this.form.submit()"，
+    // 页面会刷新，所以这段 JS 严格来说不是必须的了，但保留也无害。
+    document.addEventListener('DOMContentLoaded', function() {
+        const queryTypeSelect = document.getElementById('query_type');
+        const userQueryFields = document.getElementById('user_query_fields');
+        const doorQueryFields = document.getElementById('door_query_fields');
+
+        function toggleQueryFields() {
+            const currentType = queryTypeSelect.value;
+            userQueryFields.style.display = (currentType === 'user' ? 'flex' : 'none');
+            doorQueryFields.style.display = (currentType === 'door' ? 'flex' : 'none');
+        }
+        
+        // 页面加载时调用一次以确保状态正确
+        toggleQueryFields();
+    });
+</script>
+{% endblock %}

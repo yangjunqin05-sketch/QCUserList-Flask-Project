@@ -1,0 +1,120 @@
+<!-- app/templates/role_change_request_form.html -->
+
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8 col-md-10">
+        <h2 class="mb-4">系统用户角色修改申请</h2>
+        <div class="card">
+            <div class="card-body">
+                <form id="main-form" action="" method="post" novalidate>
+                    {{ form.hidden_tag() }}
+                    
+                    <fieldset class="mb-4">
+                        <legend class="h5">{{ form.system.label }}</legend>
+                        {{ form.system(class="form-select") }}
+                    </fieldset>
+
+                    <!-- 电脑用户修改区域 -->
+                    <fieldset class="mb-3 p-3 border rounded" id="computer-user-section" style="display: none;">
+                        <legend class="h6">{{ form.computer_user_link.label }}</legend>
+                        <div class="mb-3">
+                            {{ form.computer_user_link(class="form-select") }}
+                        </div>
+                        <div class="mb-3">
+                            {{ form.new_computer_role.label(class="form-label") }}
+                            {{ form.new_computer_role(class="form-control", placeholder="输入新的角色...") }}
+                        </div>
+                    </fieldset>
+
+                    <!-- 工作站用户修改区域 -->
+                    <fieldset class="p-3 border rounded" id="workstation-user-section" style="display: none;">
+                        <legend class="h6">{{ form.workstation_user_link.label }}</legend>
+                         <div class="mb-3">
+                            {{ form.workstation_user_link(class="form-select") }}
+                        </div>
+                        <div class="mb-3">
+                           {{ form.new_workstation_role.label(class="form-label") }}
+                           {{ form.new_workstation_role(class="form-control", placeholder="输入新的角色...") }}
+                        </div>
+                    </fieldset>
+
+                    <div class="mt-4">
+                        {{ form.submit(class="btn btn-primary btn-lg") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const systemSelect = document.getElementById('system');
+    const computerUserSection = document.getElementById('computer-user-section');
+    const workstationUserSection = document.getElementById('workstation-user-section');
+    const computerUserSelect = document.getElementById('computer_user_link');
+    const workstationUserSelect = document.getElementById('workstation_user_link');
+
+    systemSelect.addEventListener('change', function() {
+        const systemId = this.value;
+
+        // Reset and hide sections
+        computerUserSection.style.display = 'none';
+        workstationUserSection.style.display = 'none';
+        clearSelect(computerUserSelect);
+        clearSelect(workstationUserSelect);
+
+        if (systemId && systemId !== '0') {
+            // Fetch and populate computer users
+            fetch(`/api/system/${systemId}/computer_users_for_select`)
+                .then(response => response.json())
+                .then(users => {
+                    if (users.length > 0) {
+                        populateSelect(computerUserSelect, users, '选择一个电脑用户...');
+                        computerUserSection.style.display = 'block';
+                    }
+                });
+
+            // Fetch and populate workstation users
+            fetch(`/api/system/${systemId}/workstation_users_for_select`)
+                .then(response => response.json())
+                .then(users => {
+                    if (users.length > 0) {
+                        populateSelect(workstationUserSelect, users, '选择一个工作站用户...');
+                        workstationUserSection.style.display = 'block';
+                    }
+                });
+        }
+    });
+
+    function clearSelect(selectElement) {
+        selectElement.innerHTML = '';
+    }
+
+    function populateSelect(selectElement, items, placeholder) {
+        let options = `<option value="">${placeholder}</option>`;
+        items.forEach(item => {
+            options += `<option value="${item.id}">${item.text}</option>`;
+        });
+        selectElement.innerHTML = options;
+    }
+
+    // Logic to ensure only one section is submitted
+    computerUserSelect.addEventListener('change', () => {
+        if (computerUserSelect.value) {
+            workstationUserSelect.value = ''; // Clear the other select
+        }
+    });
+
+    workstationUserSelect.addEventListener('change', () => {
+        if (workstationUserSelect.value) {
+            computerUserSelect.value = ''; // Clear the other select
+        }
+    });
+});
+</script>
+{% endblock %}

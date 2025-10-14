@@ -1,0 +1,72 @@
+<!-- app/templates/manage_scripts.html -->
+
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <!-- 现有脚本列表 -->
+        <div class="col-md-8">
+            <h2 class="mb-4">脚本管理</h2>
+            <div class="card">
+                <div class="card-body">
+                    {% if scripts %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>脚本名称</th>
+                                    <th>描述</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for script in scripts %}
+                                <tr>
+                                    <td>{{ script.name }}</td>
+                                    <td>{{ script.description or '无' }}</td>
+                                    <td>
+                                        <a href="{{ url_for('routes.edit_script', script_id=script.id) }}" class="btn btn-sm btn-outline-secondary">编辑</a>
+                                        <form action="{{ url_for('routes.delete_script', script_id=script.id) }}" method="POST" class="d-inline" onsubmit="return confirm('确定要删除这个脚本吗？');">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">删除</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">还没有任何脚本。</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <!-- 创建新脚本表单 -->
+        <div class="col-md-4">
+            <h2 class="mb-4">&nbsp;</h2> <!-- 占位符，与左侧对齐 -->
+            <div class="card">
+                <div class="card-header">创建新脚本</div>
+                <div class="card-body">
+                    <form action="{{ url_for('routes.manage_scripts') }}" method="POST" novalidate>
+                        {{ form.hidden_tag() }}
+                        <div class="mb-3">
+                            {{ form.name.label(class="form-label") }}
+                            {{ form.name(class="form-control") }}
+                        </div>
+                        <div class="mb-3">
+                            {{ form.description.label(class="form-label") }}
+                            {{ form.description(class="form-control") }}
+                        </div>
+                        <div class="mb-3">
+                            {{ form.content.label(class="form-label") }}
+                            {{ form.content(class="form-control") }}
+                        </div>
+                        {{ form.submit(class="btn btn-primary") }}
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

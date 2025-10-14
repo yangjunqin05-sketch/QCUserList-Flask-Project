@@ -1,0 +1,71 @@
+{% extends "layout.html" %}
+
+{% block title %}用户查询 - 门禁管理{% endblock %}
+
+{% block menjin_content %}
+    <h2>用户列表与筛选</h2>
+
+    <div class="filter-form">
+        {# ... 表单内容不变 ... #}
+        <form method="GET" action="{{ url_for('menjin.list_users_page') }}">
+            <div>
+                <label for="department_id">部门:</label>
+                <select id="department_id" name="department_id">
+                    <option value="">-- 所有部门 --</option>
+                    {% for dept in departments %}
+                        <option value="{{ dept.f_GroupID }}" {% if request.args.get('department_id') == dept.f_GroupID|string %}selected{% endif %}>
+                            {{ dept.f_GroupName }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="search_name">姓名:</label>
+                <input type="text" id="search_name" name="search_name" value="{{ request.args.get('search_name', '') }}" placeholder="输入姓名关键字">
+            </div>
+            <div><button type="submit">查询</button>
+            {% if request.args.get('department_id') or request.args.get('search_name') %}
+                 <a href="{{ url_for('menjin.list_users_page') }}" style="margin-left: 10px;">清除筛选</a>
+            {% endif %}
+            </div>
+        </form>
+    </div>
+
+    {% if users %}
+        <table>
+            <thead>
+                <tr>
+                    <th>工号</th>
+                    <th>姓名</th>
+                    <th>卡号</th>
+                    <th>部门</th>
+                    <th>权限类型</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td>{{ user.f_ConsumerNO }}</td>
+                    <td>{{ user.f_ConsumerName }}</td>
+                    <td>{{ user.f_CardNO if user.f_CardNO is not none else '' }}</td>
+                    <td>{{ user.DepartmentName if user.DepartmentName is not none else '未分配' }}</td>
+                    <td>{{ user.PrivilegeType if user.PrivilegeType is not none else '未指定' }}</td>
+                    <td class="actions">
+                        {# --- 修改这里的链接 --- #}
+                        <a href="{{ url_for('menjin.privileges_query_page', query_type='user', target_consumer_no=user.f_ConsumerNO) }}">查看用户权限</a>
+                        {# ---------------------- #}
+                        <form method="POST" action="{{ url_for('menjin.request_delete_user', consumer_no=user.f_ConsumerNO) }}"
+                              onsubmit="return confirmAction('确定要将删除用户 [{{ user.f_ConsumerName }}] (工号: {{ user.f_ConsumerNO }}) 的请求加入待处理列表吗？');"
+                              style="display: inline;">
+                            <button type="submit" class="delete">请求删除用户</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>没有找到符合条件的用户数据。</p>
+    {% endif %}
+{% endblock %}

@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual Environment
+venv/
+.venv/
+qcuser/
+env/
+ENV/
+
+# Instance Folder (containing the database)
+/instance/app.db
+
+# VS Code
+.vscode/
+
+# Build artifacts
+/agent/build/
+/agent/dist/
+*.spec

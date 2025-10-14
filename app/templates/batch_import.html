@@ -1,0 +1,30 @@
+<!-- app/templates/batch_import.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <h2>批量导入用户到: <span class="text-muted">{{ system.name }}</span></h2>
+        <p class="lead">请从 Excel 或文本文件中复制数据，并粘贴到下面的文本框中。</p>
+        <hr>
+        <div class="card">
+            <div class="card-body">
+                <form action="" method="post" novalidate>
+                    {{ form.hidden_tag() }}
+                    <div class="mb-3">
+                        {{ form.import_type.label(class="form-label") }}
+                        {{ form.import_type(class="form-select") }}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.user_data.label(class="form-label") }}
+                        <div class="form-text">每行一个用户，使用英文逗号分隔：<strong>用户名,中文名,角色</strong></div>
+                        {{ form.user_data(class="form-control") }}
+                    </div>
+                    {{ form.submit(class="btn btn-primary") }}
+                    <a href="{{ url_for('routes.system_detail', system_id=system.id) }}" class="btn btn-secondary">取消</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

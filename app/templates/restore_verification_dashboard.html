@@ -1,0 +1,77 @@
+<!-- app/templates/restore_verification_dashboard.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0">备份还原验证状态清单</h1>
+</div>
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>系统编号</th>
+                        <th>仪器/系统名称</th>
+                        <th>系统分组</th>
+                        <th>是否验证</th>
+                        <th>上次验证时间</th>
+                        <th>验证周期</th>
+                        <th>下一次验证时间</th>
+                        {% if current_user.role == 'admin' %}<th>操作</th>{% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for system in systems %}
+                    <tr>
+                        <td>{{ system.system_number }}</td>
+                        <td><a href="{{ url_for('routes.system_detail', system_id=system.id) }}">{{ system.name }}</a></td>
+                        <td><span class="badge bg-secondary">{{ system.group.name if system.group else '未分组' }}</span></td>
+                        <!-- 表单来处理编辑 -->
+                        <form action="{{ url_for('routes.update_restore_info', system_id=system.id) }}" method="POST">
+                            <td>
+                                {% if current_user.role == 'admin' %}
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="is_restore_verified" {% if system.is_restore_verified %}checked{% endif %}>
+                                </div>
+                                {% else %}
+                                {{ "是" if system.is_restore_verified else "否" }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if current_user.role == 'admin' %}
+                                <input type="date" name="last_restore_verification_date" class="form-control form-control-sm" value="{{ system.last_restore_verification_date.strftime('%Y-%m-%d') if system.last_restore_verification_date }}">
+                                {% else %}
+                                {{ system.last_restore_verification_date.strftime('%Y-%m-%d') if system.last_restore_verification_date else 'N/A' }}
+                                {% endif %}
+                            </td>
+                            <td>
+                               {% if current_user.role == 'admin' %}
+                               <select name="restore_verification_cycle" class="form-select form-select-sm">
+                                   <option value="0" {% if not system.restore_verification_cycle %}selected{% endif %}>---</option>
+                                   <option value="2" {% if system.restore_verification_cycle == 2 %}selected{% endif %}>2 年</option>
+                                   <option value="3" {% if system.restore_verification_cycle == 3 %}selected{% endif %}>3 年</option>
+                               </select>
+                               {% else %}
+                               {{ system.restore_verification_cycle ~ " 年" if system.restore_verification_cycle else 'N/A' }}
+                               {% endif %}
+                            </td>
+                            <td>
+                                {% set next_date = system.get_next_verification_date() %}
+                                {% if next_date %}<span class="badge {% if (next_date - today).days < 0 %}bg-danger{% elif (next_date - today).days < 30 %}bg-warning text-dark{% else %}bg-success{% endif %}">{{ next_date.strftime('%Y-%m-%d') }}</span>
+                                {% else %}N/A{% endif %}
+                            </td>
+                            {% if current_user.role == 'admin' %}
+                            <td><button type="submit" class="btn btn-sm btn-outline-primary">保存</button></td>
+                            {% endif %}
+                        </form>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="8" class="text-center text-muted">没有需要进行备份还原验证的系统。</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

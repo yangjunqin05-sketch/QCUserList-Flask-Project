@@ -1,0 +1,311 @@
+<!-- app/templates/admin_pending_requests.html -->
+
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">待执行申请</h1>
+
+    <!-- 用户新增申请 -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4><i class="bi bi-person-plus-fill me-2"></i>用户新增申请</h4>
+        </div>
+        <div class="card-body">
+            {% if add_requests %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>申请人</th>
+                            <th>申请日期</th>
+                            <th>待增用户信息</th>
+                            <th>目标系统</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for req in add_requests %}
+                        <tr>
+                            <td>{{ req.requested_by.chinese_name }}</td>
+                            <td>{{ req.request_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>
+                                <ul class="list-unstyled mb-0 small">
+                                    <li><strong>用户名:</strong> {{ req.username }}</li>
+                                    <li><strong>中文名:</strong> {{ req.chinese_name }}</li>
+                                    {% if req.computer_role %}<li><strong>电脑角色:</strong> {{ req.computer_role }}</li>{% endif %}
+                                    {% if req.workstation_role %}<li><strong>工作站角色:</strong> {{ req.workstation_role }}</li>{% endif %}
+                                </ul>
+                            </td>
+                            <td>
+                                <ul class="list-unstyled mb-0 small">
+                                {% for sys_id in req.target_systems.split(',') %}
+                                    {% set system = all_systems.get(sys_id|int) %}
+                                    {% if system %}
+                                    <li>{{ system.name }}</li>
+                                    {% endif %}
+                                {% endfor %}
+                                </ul>
+                            </td>
+                            <td>
+                                <!-- 批准按钮 -->
+                                <form action="{{ url_for('routes.approve_add_request', request_id=req.id) }}" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('确认批准此新增申请吗？')">批准</button>
+                                </form>
+                                <!-- 新增：撤销按钮 -->
+                                <form action="{{ url_for('routes.cancel_add_request', request_id=req.id) }}" method="POST" class="d-inline ms-1">
+                                    <button type="submit" class="btn btn-sm btn-secondary" onclick="return confirm('确定要撤销此新增申请吗？')">撤销</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted">当前没有待处理的用户新增申请。</p>
+            {% endif %}
+        </div>
+    </div>
+
+     <!-- 用户删除申请 -->
+    <div class="card">
+        <div class="card-header">
+            <h4><i class="bi bi-person-dash-fill me-2"></i>用户删除申请</h4>
+        </div>
+        <div class="card-body">
+             {% if del_requests %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>申请人</th>
+                            <th>申请日期</th>
+                            <th>待删除用户</th>
+                            <th>当前所在系统及角色</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for req in del_requests %}
+                        <tr>
+                            <td>{{ req.requested_by.chinese_name }}</td>
+                            <td>{{ req.request_date.strftime('%Y-%m-%d') }}</td>
+                            <td>{{ req.account_to_delete.chinese_name }} ({{ req.account_to_delete.username }})</td>
+                            <td>
+                                {# --- 核心修改：开始合并显示逻辑 --- #}
+                                {% set systems_map = {} %}
+                                
+                                {# 1. 收集电脑用户角色 #}
+                                {% for su in req.account_to_delete.system_access %}
+                                    {% if su.system.name not in systems_map %}
+                                        {% set _ = systems_map.update({su.system.name: {'computer': [], 'workstation': []}}) %}
+                                    {% endif %}
+                                    {% set _ = systems_map[su.system.name]['computer'].append(su.system_role) %}
+                                {% endfor %}
+
+                                {# 2. 收集工作站用户角色 #}
+                                {% for wu in req.account_to_delete.workstation_access %}
+                                    {% if wu.system.name not in systems_map %}
+                                        {% set _ = systems_map.update({wu.system.name: {'computer': [], 'workstation': []}}) %}
+                                    {% endif %}
+                                     {% set _ = systems_map[wu.system.name]['workstation'].append(wu.role.name) %}
+                                {% endfor %}
+
+                                {# 3. 循环渲染合并后的结果 #}
+                                <ul class="list-unstyled mb-0 small">
+                                    {% for system_name, roles in systems_map.items() %}
+                                    <li>
+                                        <strong>{{ system_name }}:</strong>
+                                        {% if roles.computer %}
+                                            电脑用户 ({{ roles.computer | join(', ') }})
+                                        {% endif %}
+                                        {% if roles.computer and roles.workstation %}
+                                            ; 
+                                        {% endif %}
+                                        {% if roles.workstation %}
+                                            工作站用户 ({{ roles.workstation | join(', ') }})
+                                        {% endif %}
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                                {# --- 结束合并显示逻辑 --- #}
+                            </td>
+                            <td>
+                               <form action="{{ url_for('routes.approve_del_request', request_id=req.id) }}" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('确认批准此删除申请吗？将移除该用户在所有系统中的权限。')">批准删除</button>
+                               </form>
+                               <form action="{{ url_for('routes.cancel_del_request', request_id=req.id) }}" method="POST" class="d-inline ms-1">
+                                    <button type="submit" class="btn btn-sm btn-secondary" onclick="return confirm('确定要撤销此删除申请吗？')">撤销</button>
+                               </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted">当前没有待处理的用户删除申请。</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+    <div class="card mt-4">
+            <div class="card-header">
+                <h4><i class="bi bi-person-gear me-2"></i>用户角色修改申请</h4>
+            </div>
+            <div class="card-body">
+                {% if role_change_requests %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>申请人 / 日期</th>
+                                <th>目标系统</th>
+                                <th>目标用户</th>
+                                <th>类型</th>
+                                <th>当前角色</th>
+                                <th>期望角色</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for req in role_change_requests %}
+                            <tr>
+                                <td>
+                                    {{ req.requested_by.chinese_name }}
+                                    <small class="d-block text-muted">{{ req.request_date.strftime('%Y-%m-%d %H:%M') }}</small>
+                                </td>
+                                <td>{{ req.system.name }}</td>
+                                <td>{{ req.account.chinese_name }} ({{ req.account.username }})</td>
+                                <td>
+                                    {% if req.user_type == 'computer' %}
+                                    <span class="badge bg-info text-dark">电脑用户</span>
+                                    {% else %}
+                                    <span class="badge bg-primary">工作站用户</span>
+                                    {% endif %}
+                                </td>
+                                <td><span class="text-muted">{{ req.current_role }}</span></td>
+                                <td><strong>{{ req.new_role }}</strong></td>
+                                <td>
+                                    <!-- 批准按钮的表单 -->
+                                    <form action="{{ url_for('routes.approve_role_change_request', request_id=req.id) }}" method="POST" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('确认批准此角色修改申请吗？')">批准</button>
+                                    </form>
+                                    
+                                    <!-- 核心修正：为撤销按钮创建独立的、指向正确路由的表单 -->
+                                    <form action="{{ url_for('routes.cancel_role_change_request', request_id=req.id) }}" method="POST" class="d-inline ms-1">
+                                        <button type="submit" class="btn btn-sm btn-secondary" onclick="return confirm('确定要撤销此角色修改申请吗？')">撤销</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">当前没有待处理的用户角色修改申请。</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+        <div class="card mt-4">
+    <div class="card-header">
+        <h4><i class="bi bi-person-bounding-box me-2"></i>门禁用户删除申请</h4>
+    </div>
+    <div class="card-body">
+        {% if menjin_del_requests %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>申请人</th>
+                        <th>申请日期</th>
+                        <th>待删除门禁用户</th>
+                        <th>工号</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for req in menjin_del_requests %}
+                    <tr>
+                        <td>{{ req.requested_by.chinese_name }}</td>
+                        <td>{{ req.request_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td><strong>{{ req.consumer_name }}</strong></td>
+                        <td><code>{{ req.consumer_no }}</code></td>
+                        <td>
+                            <form action="{{ url_for('routes.approve_menjin_del_request', request_id=req.id) }}" method="POST" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('警告：确认要永久删除门禁用户 “{{ req.consumer_name }}” 吗？此操作不可恢复。')">批准删除</button>
+                            </form>
+                            <form action="{{ url_for('routes.cancel_menjin_del_request', request_id=req.id) }}" method="POST" class="d-inline ms-1">
+                                    <button type="submit" class="btn btn-sm btn-secondary" onclick="return confirm('确定要撤销此门禁删除申请吗？')">撤销</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted">当前没有待处理的门禁用户删除申请。</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 在 app/templates/admin_pending_requests.html 文件末尾添加这个卡片 -->
+
+    <!-- 新增：系统用户部分权限删除申请 -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h4><i class="bi bi-scissors me-2"></i>系统用户部分权限删除申请</h4>
+        </div>
+        <div class="card-body">
+            {% if partial_del_requests %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>申请人 / 日期</th>
+                            <th>目标用户</th>
+                            <th>待删除权限详情</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for req in partial_del_requests %}
+                        <tr>
+                            <td>
+                                {{ req.requested_by.chinese_name }}
+                                <small class="d-block text-muted">{{ req.request_date.strftime('%Y-%m-%d %H:%M') }}</small>
+                            </td>
+                            <td><strong>{{ req.chinese_name }}</strong></td>
+                            <td>
+                                <ul class="list-unstyled mb-0 small">
+                                    {% for link in req.get_system_links() %}
+                                        <li><span class="badge bg-info text-dark me-1">电脑</span><strong>{{ link.system }}:</strong> {{ link.role }}</li>
+                                    {% endfor %}
+                                    {% for link in req.get_workstation_links() %}
+                                         <li><span class="badge bg-primary me-1">工作站</span><strong>{{ link.system }}:</strong> {{ link.role }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </td>
+                            <td>
+                                <form action="{{ url_for('routes.approve_partial_del_request', request_id=req.id) }}" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('确认批准移除这些权限吗？')">批准</button>
+                                </form>
+                                <form action="{{ url_for('routes.cancel_partial_del_request', request_id=req.id) }}" method="POST" class="d-inline ms-1">
+                                    <button type="submit" class="btn btn-sm btn-secondary" onclick="return confirm('确定要撤销此申请吗？')">撤销</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted">当前没有待处理的部分权限删除申请。</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

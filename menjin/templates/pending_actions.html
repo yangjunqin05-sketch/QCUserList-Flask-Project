@@ -1,0 +1,45 @@
+<!-- menjin/templates/pending_actions.html -->
+
+{% extends "layout.html" %}
+
+{% block title %}待处理操作{% endblock %}
+
+{% block menjin_content %}
+    <h2>待处理操作</h2>
+    
+    {% if actions %}
+        <div class="action-form">
+            <form method="POST" action="{{ url_for('menjin.execute_pending_actions') }}" onsubmit="return confirmAction('确定要执行所有待处理操作吗？');">
+                <div class="me-3"><label for="admin_password">管理员执行密码:</label><input type="password" id="admin_password" name="admin_password" required></div>
+                <div><button type="submit" class="btn btn-success">一键执行</button></div>
+            </form>
+        </div>
+        <table class="table table-bordered table-striped">
+            <thead><tr><th>ID</th><th>类型</th><th>时间</th><th>操作详情</th><th>操作</th></tr></thead>
+            <tbody>
+                {% for action in actions %}
+                <tr>
+                    <td>{{ action.f_ActionID }}</td>
+                    <td>{{ action.f_ActionType }}</td>
+                    <td>{{ action.f_Timestamp.strftime('%Y-%m-%d %H:%M:%S') if action.f_Timestamp else '' }}</td>
+                    <td>
+                    {% if action.f_ActionDetails_parsed and action.f_ActionDetails_parsed.description %}
+                        {{ action.f_ActionDetails_parsed.description }}
+                    {% elif action.f_ActionDetails %}
+                        {{ action.f_ActionDetails }}
+                    {% endif %}
+                    </td>
+                    <td class="actions">
+                        <form method="POST" action="{{ url_for('menjin.cancel_pending_action', action_id=action.f_ActionID) }}" style="display:inline;" onsubmit="return confirmAction('确定要撤销此待处理操作吗？');">
+                            <button type="submit" class="btn btn-warning btn-sm">撤销</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>当前没有待处理的操作。</p>
+    {% endif %}
+    <a href="{{ url_for('menjin.list_users_page') }}" class="back-link mt-3">« 返回用户列表</a>
+{% endblock %}

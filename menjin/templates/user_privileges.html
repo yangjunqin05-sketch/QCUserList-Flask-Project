@@ -1,0 +1,47 @@
+{% extends "layout.html" %}
+
+{% block title %}用户权限 - {{ user.f_ConsumerName }}{% endblock %}
+
+{% block menjin_content %}
+    <h2>用户权限详情</h2>
+    <p><strong>工号:</strong> {{ user.f_ConsumerNO }}</p>
+    <p><strong>姓名:</strong> {{ user.f_ConsumerName }}</p>
+    <hr>
+    <h3>当前门禁权限:</h3>
+    {% if privileges %}
+        <table>
+            <thead>
+                <tr>
+                    <th>门名称/楼层</th>
+                    <th>时段名称 (ID)</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for priv in privileges %}
+                <tr>
+                    <td>{{ priv.DoorName | default('未知门 (ID:' ~ priv.DoorID ~ ')') }}</td>
+                    <td>{{ priv.ControlSegName | default('默认') }} (ID: {{ priv.ControlSegID }})</td>
+                    <td class="actions">
+                        <form method="POST"
+                              action="{{ url_for('menjin.request_delete_user_privilege', consumer_no=user.f_ConsumerNO, door_id=priv.DoorID, control_seg_id=priv.ControlSegID if priv.ControlSegID is not none else 0) }}"
+                              onsubmit="return confirmAction('确定要将删除此权限的请求加入待处理列表吗？\n用户: {{ user.f_ConsumerName }}\n门: {{ priv.DoorName }}\n时段: {{ priv.ControlSegName | default(priv.ControlSegID) }}');"
+                              style="display: inline;">
+                            <button type="submit" class="delete">请求删除此权限</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>该用户当前没有分配任何门禁权限，或无法获取权限信息。</p>
+    {% endif %}
+
+    {# 这里可以放一个“为此用户添加新权限”的表单或链接，指向一个新页面/弹窗 #}
+    {# 例如: <a href="{{ url_for('menjin.add_privilege_to_user_page', consumer_no=user.f_ConsumerNO) }}">为此用户添加新权限</a> #}
+    {# 这个添加权限的页面也需要对应的后端路由和处理逻辑 #}
+
+    <br>
+    <a href="{{ url_for('menjin.list_users_page') }}" class="back-link">« 返回用户列表</a>
+{% endblock %}

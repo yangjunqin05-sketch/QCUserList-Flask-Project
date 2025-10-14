@@ -1,0 +1,144 @@
+<!-- app/templates/user_request_form.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8 col-md-10">
+        <h2 class="mb-4">系统用户新增申请</h2>
+        <div class="card">
+            <div class="card-body">
+                <form action="" method="post" novalidate>
+                    {{ form.hidden_tag() }}
+                    <fieldset class="mb-4">
+                        <legend class="h5">1. 填写新用户信息</legend>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                {{ form.username.label(class="form-label") }}
+                                {{ form.username(class="form-control") }}
+                                {% if form.username.errors %}<div class="invalid-feedback d-block">{{ form.username.errors[0] }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-6">{{ form.chinese_name.label(class="form-label") }} {{ form.chinese_name(class="form-control") }}</div>
+                            
+                            <div class="col-md-6">
+                                {{ form.computer_role.label(class="form-label") }}
+                                {{ form.computer_role(class="form-control", list="computer-roles-list") }}
+                                <datalist id="computer-roles-list"></datalist>
+                            </div>
+
+                            <div class="col-md-6">
+                                {{ form.workstation_role.label(class="form-label") }}
+                                {{ form.workstation_role(class="form-control", list="workstation-roles-list") }}
+                                <datalist id="workstation-roles-list"></datalist>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="mb-4">
+                        <legend class="h5">2. 选择目标系统</legend>
+                        <div class="mb-3">
+                            <select id="group-filter-select" class="form-select">
+                                <option value="all" selected>-- 按系统分组筛选 --</option>
+                                <option value="none">未分组</option>
+                                {% for group in all_groups %}<option value="{{ group.name }}">{{ group.name }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        {{ form.target_system(class="form-select") }}
+                        {% if form.target_system.errors %}<div class="invalid-feedback d-block">{{ form.target_system.errors[0] }}</div>{% endif %}
+                    </fieldset>
+                    
+                    <fieldset>
+                        <legend class="h5">3. (参考) 已选系统当前工作站用户</legend>
+                        <div id="existing-users-display" class="bg-light p-3 rounded small">
+                            <p class="text-muted">请先选择上面的系统以查看其当前用户。</p>
+                        </div>
+                    </fieldset>
+
+                    <div class="mt-4">{{ form.submit(class="btn btn-primary btn-lg") }}</div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+    const allSystems = {{ systems_with_groups|tojson|safe }};
+
+document.addEventListener('DOMContentLoaded', function () {
+    const groupSelect = document.getElementById('group-filter-select');
+    const systemSelect = document.getElementById('target_system');
+    const displayDiv = document.getElementById('existing-users-display');
+    const computerRolesDatalist = document.getElementById('computer-roles-list');
+    const workstationRolesDatalist = document.getElementById('workstation-roles-list');
+
+    groupSelect.addEventListener('change', function() {
+        const selectedGroup = this.value;
+        const filteredSystems = allSystems.filter(system => {
+            if (selectedGroup === 'all') return true;
+            return system.group === selectedGroup;
+        });
+        let optionsHtml = '<option value="0">-- 请选择一个系统 --</option>';
+        filteredSystems.forEach(system => {
+            optionsHtml += `<option value="${system.id}">${system.name}</option>`;
+        });
+        systemSelect.innerHTML = optionsHtml;
+        // 触发一次 change 事件来清空下面的列表
+        systemSelect.dispatchEvent(new Event('change'));
+    });
+
+    systemSelect.addEventListener('change', function() {
+        const systemId = this.value;
+        
+        // 重置/清空参考用户和角色推荐
+        displayDiv.innerHTML = '<p class="text-muted">请先选择上面的系统以查看其当前用户。</p>';
+        computerRolesDatalist.innerHTML = '';
+        workstationRolesDatalist.innerHTML = '';
+
+        if (!systemId || systemId === '0') {
+            return;
+        }
+
+        // --- 逻辑1：获取并更新参考用户列表 ---
+        displayDiv.innerHTML = '<p class="text-muted">正在加载用户...</p>';
+        fetch(`/api/system/${systemId}/users`)
+            .then(res => res.json())
+            .then(users => {
+                let html = '';
+                if (users && users.length > 0) {
+                    html += '<ul class="mb-0">';
+                    users.forEach(user => { html += `<li>${user.name} (${user.role})</li>`; });
+                    html += '</ul>';
+                } else {
+                    html += '<p class="mb-0"> (该系统暂无工作站用户)</p>';
+                }
+                displayDiv.innerHTML = html;
+            }).catch(error => {
+                console.error("Failed to fetch existing users:", error);
+                displayDiv.innerHTML = '<p class="text-danger">加载用户列表失败。</p>';
+            });
+
+        // --- 逻辑2：获取并更新角色推荐列表 ---
+        fetch(`/api/system/${systemId}/roles`)
+            .then(response => response.json())
+            .then(data => {
+                let computerOptions = '';
+                if (data.computer_roles) {
+                    data.computer_roles.forEach(role => {
+                        computerOptions += `<option value="${role}"></option>`;
+                    });
+                }
+                computerRolesDatalist.innerHTML = computerOptions;
+
+                let workstationOptions = '';
+                if (data.workstation_roles) {
+                    data.workstation_roles.forEach(role => {
+                        workstationOptions += `<option value="${role}"></option>`;
+                    });
+                }
+                workstationRolesDatalist.innerHTML = workstationOptions;
+            })
+            .catch(error => console.error('Failed to fetch system roles:', error));
+    });
+});
+</script>
+{% endblock %}

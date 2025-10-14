@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">管理员面板 - 待处理的用户删除请求</h1>
+    
+    {% if requests %}
+    <table class="table table-hover align-middle">
+        <thead class="table-light">
+            <tr>
+                <th scope="col">申请日期</th>
+                <th scope="col">待删除用户</th>
+                <th scope="col">申请人</th>
+                <!-- 新增列: 需要删除权限的系统 -->
+                <th scope="col">需要删除权限的系统</th>
+                <th scope="col">状态</th>
+                <th scope="col">操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for req in requests %}
+            <tr>
+                <td>{{ req.request_date.strftime('%Y-%m-%d') }}</td>
+                <td>{{ req.user_to_delete.chinese_name }} ({{ req.user_to_delete.username }})</td>
+                <td>{{ req.requested_by.chinese_name }}</td>
+                <td>
+                    <!-- 新增: 循环显示用户的系统权限 -->
+                    <ul class="list-unstyled mb-0 small">
+                    {% for su in req.user_to_delete.system_access %}
+                        <li><strong>{{ su.system.name }}:</strong> 电脑用户 ({{ su.system_role }})</li>
+                    {% endfor %}
+                    {% for wu in req.user_to_delete.workstation_access %}
+                        <li><strong>{{ wu.system.name }}:</strong> 工作站用户 ({{ wu.role.name }})</li>
+                    {% endfor %}
+                    </ul>
+                </td>
+                <td><span class="badge bg-warning text-dark">{{ req.status }}</span></td>
+                <td>
+                    <form action="{{ url_for('routes.complete_deletion', request_id=req.id) }}" method="POST">
+                        <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('确认已在所有相关系统中删除该用户并完成此请求吗？')">
+                            标记为完成
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="alert alert-info" role="alert">
+        当前没有待处理的用户删除请求。
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

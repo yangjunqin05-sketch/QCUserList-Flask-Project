@@ -1,0 +1,33 @@
+<!-- menjin/templates/layout.html (最终修正版) -->
+{% extends "base.html" %}
+
+{% block content %}
+    <!-- 门禁模块的子导航栏 -->
+    <ul class="nav nav-tabs mb-4">
+        <li class="nav-item"><a class="nav-link {% if request.endpoint == 'menjin.list_users_page' %}active{% endif %}" href="{{ url_for('menjin.list_users_page') }}">用户查询</a></li>
+        <li class="nav-item"><a class="nav-link {% if request.endpoint == 'menjin.privileges_query_page' %}active{% endif %}" href="{{ url_for('menjin.privileges_query_page') }}">权限查询</a></li>
+    </ul>
+
+    <!-- 门禁模块的主内容区域 -->
+    <div class="menjin-container bg-white p-4 rounded shadow-sm">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <ul class="list-unstyled">
+                {% for category, message in messages %}
+                    <li class="alert alert-{{ category }}">{{ message }}</li>
+                {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+        
+        {% block menjin_content %}{% endblock %}
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    function confirmAction(message) { return confirm(message || '确定要执行此操作吗？'); }
+    </script>
+    {% block scripts_extra %}{% endblock %}
+{% endblock %}

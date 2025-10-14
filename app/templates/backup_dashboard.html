@@ -1,0 +1,63 @@
+<!-- app/templates/backup_dashboard.html -->
+
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0">系统备份状态清单</h1>
+</div>
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>系统编号</th>
+                        <th>仪器/系统名称</th>
+                        <th>系统分组</th>
+                        <th>电脑加域</th>
+                        <th>计算机名</th>
+                        <th>IP 地址</th>
+                        <th>备份方式</th>
+                        <th>备份频次</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for system in systems %}
+                    <tr>
+                        <td>{{ system.system_number }}</td>
+                        <td><a href="{{ url_for('routes.system_detail', system_id=system.id) }}">{{ system.name }}</a></td>
+                        <td><span class="badge bg-secondary">{{ system.group.name if system.group else '未分组' }}</span></td>
+                        <td><span class="badge {{ 'bg-success' if system.is_domain_joined else 'bg-secondary' }}">{{ "是" if system.is_domain_joined else "否" }}</span></td>
+                        <td>{{ system.computer_name or 'N/A' }}</td>
+                        <td>{{ system.ip_address or 'N/A' }}</td>
+                        <td>
+                            {# --- 核心修改：开始颜色标记逻辑 --- #}
+                            {% set method = system.backup_method or '未配置' %}
+                            
+                            {% if '手动' in method %}
+                                {# 所有包含“手动”字样的，都用橙色警告标记 #}
+                                <span class="badge bg-warning text-dark">{{ method }}</span>
+                            {% elif method == 'avamar自动备份' %}
+                                {# 自动备份用绿色成功标记 #}
+                                <span class="badge bg-success">{{ method }}</span>
+                            {% elif method == '无需备份' %}
+                                {# 无需备份用灰色标记 #}
+                                <span class="badge bg-secondary">{{ method }}</span>
+                            {% else %}
+                                {# 其他情况（如未配置、其他）用浅灰色标记 #}
+                                <span class="badge bg-light text-dark">{{ method }}</span>
+                            {% endif %}
+                            {# --- 结束颜色标记逻辑 --- #}
+                        </td>
+                        <td>{{ system.backup_frequency or '未配置' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="8" class="text-center text-muted">系统中没有任何记录。</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

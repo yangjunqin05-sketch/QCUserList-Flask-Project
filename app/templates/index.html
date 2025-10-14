@@ -1,0 +1,183 @@
+<!-- app/templates/index.html -->
+
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0">IT核查清单</h1>
+        {% if current_user.role == 'admin' %}
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addSystemModal">
+            <i class="bi bi-plus-circle me-1"></i>添加新系统
+        </button>
+        {% endif %}
+    </div>
+
+    <!-- 筛选表单 -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('routes.index') }}">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label for="group_filter" class="form-label">按系统分组筛选</label>
+                        <select name="group" id="group_filter" class="form-select">
+                            <option value="0" {% if current_group_id == 0 %}selected{% endif %}>所有分组</option>
+                            {% for group in all_groups %}
+                            <option value="{{ group.id }}" {% if current_group_id == group.id %}selected{% endif %}>{{ group.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-secondary w-100">筛选</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>系统编号</th>
+                            <th>仪器/系统名称</th>
+                            <th>系统分组</th>
+                            <!-- 恢复：缺失的列 -->
+                            <th>是否加域</th>
+                            <th>计算机名</th>
+                            <th>IP 地址</th>
+                            <!-- 结束恢复 -->
+                            <th>上次核查</th>
+                            <th>
+                                <a href="{{ url_for('routes.index', group=current_group_id, sort_by='next_check_date') }}" class="text-decoration-none">
+                                    下次核查 <i class="bi bi-arrow-down-up small"></i>
+                                </a>
+                            </th>
+                            <th>状态</th>
+                            {% if current_user.role == 'admin' %}
+                            <th style="min-width: 220px;">操作</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for system in systems %}
+                        <tr class="{{ 'table-danger' if system.is_overdue() else ('table-warning' if system.is_due() else '') }}">
+                            <td>{{ system.system_number }}</td>
+                            <td><a href="{{ url_for('routes.system_detail', system_id=system.id) }}">{{ system.name }}</a></td>
+                            <td><span class="badge bg-secondary">{{ system.group.name if system.group else '未分组' }}</span></td>
+                            
+                            <!-- 恢复：缺失的列 -->
+                            <td><span class="badge {{ 'bg-success' if system.is_domain_joined else 'bg-secondary' }}">{{ "是" if system.is_domain_joined else "否" }}</span></td>
+                            <td>{{ system.computer_name or 'N/A' }}</td>
+                            <td>{{ system.ip_address or 'N/A' }}</td>
+                            <!-- 结束恢复 -->
+
+                            {% if current_user.role == 'admin' %}
+                                <form action="{{ url_for('routes.update_dates', system_id=system.id) }}" method="POST">
+                                    <td><input type="date" name="last_check_date" class="form-control form-control-sm" value="{{ system.last_check_date.strftime('%Y-%m-%d') if system.last_check_date }}"></td>
+                                    <td>{{ system.next_check_date.strftime('%Y-%m-%d') if system.next_check_date else 'N/A' }}</td>
+                                    <td>
+                                        {% if system.next_check_date %}
+                                            {% if system.is_overdue() %}<span class="badge bg-danger">已逾期</span>
+                                            {% elif system.is_due() %}<span class="badge bg-warning text-dark">即将到期</span>
+                                            {% else %}<span class="badge bg-success">正常</span>{% endif %}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="d-flex flex-nowrap">
+                                            <button type="submit" class="btn btn-outline-primary btn-sm me-1">保存日期</button>
+                                        </form>
+                                        <form action="{{ url_for('routes.perform_check_from_index', system_id=system.id) }}" method="POST" class="d-inline me-1">
+                                            <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('确认 “{{ system.name }}” 今日核查完成吗？')">核查完成</button>
+                                        </form>
+                                        <form action="{{ url_for('routes.delete_system', system_id=system.id) }}" method="POST" class="d-inline">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('警告：确定要永久删除 “{{ system.name }}” 吗？')">删除</button>
+                                        </form>
+                                        </div>
+                                    </td>
+                                
+                            {% else %}
+                                <td>{{ system.last_check_date.strftime('%Y-%m-%d') if system.last_check_date else 'N/A' }}</td>
+                                <td>{{ system.next_check_date.strftime('%Y-%m-%d') if system.next_check_date else 'N/A' }}</td>
+                                <td>
+                                    {% if system.next_check_date %}
+                                        {% if system.is_overdue() %}<span class="badge bg-danger">已逾期</span>
+                                        {% elif system.is_due() %}<span class="badge bg-warning text-dark">即将到期</span>
+                                        {% else %}<span class="badge bg-success">正常</span>{% endif %}
+                                    {% endif %}
+                                </td>
+                            {% endif %}
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="10" class="text-center text-muted">系统中没有任何记录。</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- 添加新系统 Modal -->
+<div class="modal fade" id="addSystemModal" tabindex="-1" aria-labelledby="addSystemModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addSystemModalLabel">添加新的计算机化系统</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form action="{{ url_for('routes.add_system') }}" method="POST" id="addSystemForm" novalidate>
+                    {{ add_system_form.hidden_tag() }}
+                    <div class="mb-3">
+                        {{ add_system_form.name.label(class="form-label") }}
+                        {{ add_system_form.name(class="form-control") }}
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            {{ add_system_form.system_number.label(class="form-label") }}
+                            {{ add_system_form.system_number(class="form-control") }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ add_system_form.group.label(class="form-label") }}
+                            {{ add_system_form.group(class="form-select") }}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                         <div class="col-md-6">
+                            {{ add_system_form.check_frequency_days.label(class="form-label") }}
+                            {{ add_system_form.check_frequency_days(class="form-control") }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ add_system_form.next_check_date.label(class="form-label") }}
+                            {{ add_system_form.next_check_date(class="form-control") }}
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row mb-3 align-items-center">
+                        <div class="col-md-4">
+                            {{ add_system_form.computer_name.label(class="form-label") }}
+                            {{ add_system_form.computer_name(class="form-control") }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ add_system_form.ip_address.label(class="form-label") }}
+                            {{ add_system_form.ip_address(class="form-control") }}
+                        </div>
+                        <div class="col-md-4 pt-3">
+                            <div class="form-check">
+                                {{ add_system_form.is_domain_joined(class="form-check-input") }}
+                                {{ add_system_form.is_domain_joined.label(class="form-check-label") }}
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                <button type="submit" class="btn btn-primary" form="addSystemForm">创建系统</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,61 @@
+<!-- app/templates/edit_system.html (最终整合版) -->
+
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2>编辑系统信息: <small class="text-muted">{{ system.name }}</small></h2>
+    <hr>
+    <form action="" method="post" novalidate>
+        {{ form.hidden_tag() }}
+        <div class="row g-4">
+            <!-- 左侧：核心与网络信息 -->
+            <div class="col-md-7">
+                <div class="card">
+                    <div class="card-header">核心信息</div>
+                    <div class="card-body">
+                        <div class="mb-3">{{ form.name.label(class="form-label") }} {{ form.name(class="form-control") }}</div>
+                        <div class="mb-3">{{ form.system_number.label(class="form-label") }} {{ form.system_number(class="form-control") }}</div>
+                        <div class="mb-3">{{ form.group.label(class="form-label") }} {{ form.group(class="form-select") }}</div>
+                        <div class="mb-3">{{ form.check_frequency_days.label(class="form-label") }} {{ form.check_frequency_days(class="form-control") }}</div>
+                        <div class="mb-3">{{ form.notes.label(class="form-label") }} {{ form.notes(class="form-control") }}</div>
+                    </div>
+                </div>
+                <div class="card mt-4">
+                    <div class="card-header">网络与域信息</div>
+                    <div class="card-body">
+                        <!-- ### 新增的计算机名和IP地址字段 ### -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                {{ form.computer_name.label(class="form-label") }}
+                                {{ form.computer_name(class="form-control") }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.ip_address.label(class="form-label") }}
+                                {{ form.ip_address(class="form-control") }}
+                            </div>
+                        </div>
+                        <!-- ### 新增结束 ### -->
+                        <div class="form-check form-switch mb-3">{{ form.is_domain_joined(class="form-check-input") }} {{ form.is_domain_joined.label(class="form-check-label") }}</div>
+                        <div class="form-check form-switch">{{ form.is_workstation_domain_joined(class="form-check-input") }} {{ form.is_workstation_domain_joined.label(class="form-check-label") }}</div>
+                    </div>
+                </div>
+            </div>
+            <!-- 右侧：备份策略 -->
+            <div class="col-md-5">
+                <div class="card">
+                    <div class="card-header">备份策略</div>
+                    <div class="card-body">
+                        <div class="mb-3">{{ form.backup_method.label(class="form-label") }} {{ form.backup_method(class="form-select") }}</div>
+                        <div class="mb-3">{{ form.backup_frequency.label(class="form-label") }} {{ form.backup_frequency(class="form-select") }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="mt-4">
+            {{ form.submit(class="btn btn-primary btn-lg") }}
+            <a href="{{ url_for('routes.system_detail', system_id=system.id) }}" class="btn btn-secondary btn-lg">取消</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
