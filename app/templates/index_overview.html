@@ -1,0 +1,81 @@
+
+<!-- app/templates/index_overview.html (新的只读首页) -->
+
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0">全系统概览清单</h1>
+        {# 只有 admin 和 qc 可以看到进入管理页面的按钮 #}
+        {% if current_user.role in ['admin', 'qc'] %}
+        <a href="{{ url_for('routes.it_check_manage') }}" class="btn btn-primary">
+            <i class="bi bi-pencil-square me-1"></i>进入IT核查管理
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- 筛选表单 -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('routes.index') }}">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label for="group_filter" class="form-label">按系统分组筛选</label>
+                        <select name="group" id="group_filter" class="form-select">
+                            <option value="0" {% if current_group_id == 0 %}selected{% endif %}>所有分组</option>
+                            {% for group in all_groups %}
+                            <option value="{{ group.id }}" {% if current_group_id == group.id %}selected{% endif %}>{{ group.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-secondary w-100">筛选</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>系统编号</th>
+                            <th>仪器/系统名称</th>
+                            <th>系统分组</th>
+                            <th>是否加域</th>
+                            <th>计算机名</th>
+                            <th>IP 地址</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if systems %}
+                            {% for system in systems %}
+                            {# 移除了行颜色标记 #}
+                            <tr>
+                                <td>{{ system.system_number }}</td>
+                                {# QC组和Admin可以点击进入详情页 #}
+                                {% if current_user.role in ['admin', 'qc'] %}
+                                    <td><a href="{{ url_for('routes.system_detail', system_id=system.id) }}">{{ system.name }}</a></td>
+                                {% else %}
+                                    <td>{{ system.name }}</td>
+                                {% endif %}
+                                <td><span class="badge bg-secondary">{{ system.group.name if system.group else '未分组' }}</span></td>
+                                <td><span class="badge {{ 'bg-success' if system.is_domain_joined else 'bg-secondary' }}">{{ "是" if system.is_domain_joined else "否" }}</span></td>
+                                <td>{{ system.computer_name or 'N/A' }}</td>
+                                <td>{{ system.ip_address or 'N/A' }}</td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr><td colspan="6" class="text-center text-muted">系统中没有任何记录。</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -52,37 +52,54 @@ def roles_required(*roles):
 @login_required
 def index():
     group_filter_id = request.args.get('group', 0, type=int)
-    sort_by = request.args.get('sort_by', 'default')
     query = System.query
     if group_filter_id != 0:
         query = query.filter(System.group_id == group_filter_id)
+    systems = query.order_by(System.system_number.asc()).all()
+    all_groups = Group.query.order_by(Group.id).all()
+    
+    return render_template('index_overview.html', title='系统概览', 
+                           systems=systems, all_groups=all_groups, 
+                           current_group_id=group_filter_id)
+
+
+@bp.route('/it_check_manage')
+@login_required
+@roles_required('admin', 'qc')
+def it_check_manage():
+    # --- 确保所有需要的变量都已定义 ---
+    group_filter_id = request.args.get('group', 0, type=int)
+    sort_by = request.args.get('sort_by', 'default')
+    
+    query = System.query
+    if group_filter_id != 0:
+        query = query.filter(System.group_id == group_filter_id)
+        
     if sort_by == 'next_check_date':
         query = query.order_by(System.next_check_date.asc())
     else:
         query = query.order_by(System.system_number.asc())
+        
     systems = query.all()
-    today = date.today()
-    all_groups = Group.query.order_by(Group.id).all()
+    today = date.today() # <--- 之前可能遗漏了这行
+    all_groups = Group.query.order_by(Group.id).all() # <--- 这行是关键
+    
     add_form = AddSystemForm()
-    add_form.group.choices = [(0, '不分配分组')] + [(g.id, g.name) for g in all_groups]
-    return render_template('index.html', title='IT核查', systems=systems, today=today,
-                           add_system_form=add_form, all_groups=all_groups, 
-                           current_group_id=group_filter_id, sort_by=sort_by)
-
-# app/routes.py
-def find_or_create_system_account(username, chinese_name):
-    account = SystemAccount.query.filter(SystemAccount.username.ilike(username.strip())).first()
-    if not account:
-        account = SystemAccount(username=username.strip(), chinese_name=chinese_name.strip())
-        db.session.add(account)
-        db.session.flush()
-    elif account.chinese_name != chinese_name.strip():
-        account.chinese_name = chinese_name.strip()
-    return account
-
-# app/routes.py
-
-# app/routes.py
+    # 动态填充分组选项
+    if hasattr(add_form, 'group'):
+        # 注意：这里需要重新查询一次 groups，因为 all_groups 是给筛选框用的
+        groups = Group.query.order_by(Group.name).all()
+        add_form.group.choices = [(0, '未分组')] + [(g.id, g.name) for g in groups]
+        
+    # --- 核心修正：确保所有变量都被传递给模板 ---
+    return render_template('it_check_manage.html', 
+                           title='IT核查管理', 
+                           systems=systems, 
+                           today=today,
+                           add_system_form=add_form, 
+                           all_groups=all_groups, 
+                           current_group_id=group_filter_id, 
+                           sort_by=sort_by)
 
 @bp.route('/system/<int:system_id>', methods=['GET', 'POST'])
 @login_required
@@ -281,9 +298,16 @@ def login():
             flash('无效的用户名或密码，或账户已被禁用。', 'danger')
             return redirect(url_for('routes.login'))
         login_user(user, remember=form.remember_me.data)
-        session.permanent = True
-        next_page = request.args.get('next')
-        return redirect(next_page or url_for('routes.index'))
+        
+        # 登录后根据角色智能跳转
+        if user.role == 'qa':
+            next_page = url_for('routes.qa_dashboard')
+        elif user.role == 'menjin':
+            next_page = url_for('menjin.index_page')
+        else: # admin 和 qc 默认跳转到首页
+            next_page = url_for('routes.index')
+        return redirect(next_page)
+        
     return render_template('login.html', title='登录', form=form)
 
 @bp.route('/logout')
