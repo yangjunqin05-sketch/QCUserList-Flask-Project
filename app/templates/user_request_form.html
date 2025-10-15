@@ -1,4 +1,4 @@
-<!-- app/templates/user_request_form.html -->
+<!-- app/templates/user_request_form.html (禁用自动填充版) -->
 {% extends "base.html" %}
 
 {% block content %}
@@ -14,20 +14,27 @@
                         <div class="row g-3">
                             <div class="col-md-6">
                                 {{ form.username.label(class="form-label") }}
-                                {{ form.username(class="form-control") }}
+                                <!-- 添加 autocomplete="off" -->
+                                {{ form.username(class="form-control", autocomplete="off") }}
                                 {% if form.username.errors %}<div class="invalid-feedback d-block">{{ form.username.errors[0] }}</div>{% endif %}
                             </div>
-                            <div class="col-md-6">{{ form.chinese_name.label(class="form-label") }} {{ form.chinese_name(class="form-control") }}</div>
+                            <div class="col-md-6">
+                                {{ form.chinese_name.label(class="form-label") }}
+                                <!-- 添加 autocomplete="off" -->
+                                {{ form.chinese_name(class="form-control", autocomplete="off") }}
+                            </div>
                             
                             <div class="col-md-6">
                                 {{ form.computer_role.label(class="form-label") }}
-                                {{ form.computer_role(class="form-control", list="computer-roles-list") }}
+                                <!-- 添加 autocomplete="off" -->
+                                {{ form.computer_role(class="form-control", list="computer-roles-list", autocomplete="off") }}
                                 <datalist id="computer-roles-list"></datalist>
                             </div>
 
                             <div class="col-md-6">
                                 {{ form.workstation_role.label(class="form-label") }}
-                                {{ form.workstation_role(class="form-control", list="workstation-roles-list") }}
+                                <!-- 添加 autocomplete="off" -->
+                                {{ form.workstation_role(class="form-control", list="workstation-roles-list", autocomplete="off") }}
                                 <datalist id="workstation-roles-list"></datalist>
                             </div>
                         </div>
@@ -60,8 +67,10 @@
     </div>
 </div>
 {% endblock %}
+
 {% block scripts %}
 <script>
+    // 将 allSystems 数据安全地注入到 JavaScript 中
     const allSystems = {{ systems_with_groups|tojson|safe }};
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -82,14 +91,12 @@ document.addEventListener('DOMContentLoaded', function () {
             optionsHtml += `<option value="${system.id}">${system.name}</option>`;
         });
         systemSelect.innerHTML = optionsHtml;
-        // 触发一次 change 事件来清空下面的列表
         systemSelect.dispatchEvent(new Event('change'));
     });
 
     systemSelect.addEventListener('change', function() {
         const systemId = this.value;
         
-        // 重置/清空参考用户和角色推荐
         displayDiv.innerHTML = '<p class="text-muted">请先选择上面的系统以查看其当前用户。</p>';
         computerRolesDatalist.innerHTML = '';
         workstationRolesDatalist.innerHTML = '';
@@ -98,7 +105,6 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        // --- 逻辑1：获取并更新参考用户列表 ---
         displayDiv.innerHTML = '<p class="text-muted">正在加载用户...</p>';
         fetch(`/api/system/${systemId}/users`)
             .then(res => res.json())
@@ -117,7 +123,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 displayDiv.innerHTML = '<p class="text-danger">加载用户列表失败。</p>';
             });
 
-        // --- 逻辑2：获取并更新角色推荐列表 ---
         fetch(`/api/system/${systemId}/roles`)
             .then(response => response.json())
             .then(data => {

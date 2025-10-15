@@ -18,7 +18,7 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(64), index=True, unique=True, nullable=False)
     chinese_name = db.Column(db.String(64), index=True, nullable=False)
     password_hash = db.Column(db.String(256))
-    role = db.Column(db.String(20), default='user', nullable=False)
+    role = db.Column(db.String(20), default='qc', nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
 
     # --- 核心修正：加回这个外键字段 ---

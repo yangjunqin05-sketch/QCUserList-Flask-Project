@@ -129,7 +129,11 @@ class AdminUserForm(FlaskForm):
     chinese_name = StringField('中文名', validators=[DataRequired(), Length(min=2, max=64)])
     password = PasswordField('新密码', validators=[Optional(), Length(min=6), EqualTo('password2', message='两次输入的密码必须一致。')])
     password2 = PasswordField('确认新密码', validators=[Optional()])
-    role = SelectField('平台角色', choices=[('user', '普通用户'), ('admin', '管理员')], validators=[DataRequired()])
+    role = SelectField('平台角色', choices=[('admin', '管理员'), 
+        ('qc', 'QC组'), 
+        ('qa', 'QA组'),
+        ('menjin', '门禁组')
+    ], validators=[DataRequired()])
     is_active = BooleanField('账户已激活', default=True)
     submit = SubmitField('保存用户')
     def __init__(self, original_username=None, *args, **kwargs):

@@ -25,7 +25,6 @@
     </style>
 </head>
 <body class="bg-light">
-    <!-- 导航栏 -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
         <div class="container-fluid">
             <a class="navbar-brand" href="{{ url_for('routes.index') }}">首页</a>
@@ -35,50 +34,53 @@
             <div class="collapse navbar-collapse" id="navbarNavDropdown">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                     {% if current_user.is_authenticated %}
-                    <li class="nav-item"><a class="nav-link {% if request.endpoint == 'routes.index' %}active{% endif %}" href="{{ url_for('routes.index') }}">IT核查</a></li>
-                    <li class="nav-item"><a class="nav-link {% if request.endpoint == 'routes.backup_dashboard' %}active{% endif %}" href="{{ url_for('routes.backup_dashboard') }}">备份清单</a></li>
-                    <li class="nav-item"><a class="nav-link {% if request.endpoint == 'routes.restore_dashboard' %}active{% endif %}" href="{{ url_for('routes.restore_dashboard') }}">还原验证</a></li>
-                    <li class="nav-item"><a class="nav-link {% if request.endpoint == 'routes.user_directory' %}active{% endif %}" href="{{ url_for('routes.user_directory') }}">用户目录</a></li>
-                    <li class="nav-item"><a class="nav-link {% if request.endpoint == 'routes.qa_dashboard' %}active{% endif %}" href="{{ url_for('routes.qa_dashboard') }}">QA 核查</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('menjin.index_page') }}">门禁管理</a></li>
-                    {% if current_user.role == 'admin' %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">申请</a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ url_for('routes.new_user_request') }}">系统用户新增申请</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('routes.new_role_change_request') }}">系统用户角色修改申请</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('routes.user_directory') }}">系统用户禁用/删除申请</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('routes.my_requests') }}">我的申请记录</a></li>
-                        </ul>
-                    </li>
+                        
+                        {# --- 管理员 和 QC组 都能看到的菜单 --- #}
+                        {% if current_user.role in ['admin', 'qc'] %}
+                            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'routes.index' %}active{% endif %}" href="{{ url_for('routes.index') }}">IT核查</a></li>
+                            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'routes.backup_dashboard' %}active{% endif %}" href="{{ url_for('routes.backup_dashboard') }}">备份清单</a></li>
+                            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'routes.restore_dashboard' %}active{% endif %}" href="{{ url_for('routes.restore_dashboard') }}">还原验证</a></li>
+                            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'routes.user_directory' %}active{% endif %}" href="{{ url_for('routes.user_directory') }}">用户目录</a></li>
+                        {% endif %}
 
+                        {# --- 管理员 和 QA组 都能看到的菜单 --- #}
+                        {% if current_user.role in ['admin', 'qa'] %}
+                             <li class="nav-item"><a class="nav-link {% if request.endpoint == 'routes.qa_dashboard' %}active{% endif %}" href="{{ url_for('routes.qa_dashboard') }}">QA 核查</a></li>
+                        {% endif %}
 
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle position-relative" href="#" role="button" data-bs-toggle="dropdown">
-                            管理
-                            {% if pending_requests_count %}
-                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.6em;">
-                                {{ pending_requests_count }}
-                            </span>
-                            {% endif %}
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li>
-                                <a class="dropdown-item d-flex justify-content-between align-items-center" href="{{ url_for('routes.pending_requests') }}">
-                                    待执行申请
+                        {# --- 管理员、QC组 和 门禁组 都能看到的菜单 --- #}
+                        {% if current_user.role in ['admin', 'qc', 'menjin'] %}
+                            <li class="nav-item"><a class="nav-link {% if request.blueprint == 'menjin' %}active{% endif %}" href="{{ url_for('menjin.index_page') }}">门禁管理</a></li>
+                        {% endif %}
+                        
+                        {# --- 只有 管理员 才能看到的菜单 --- #}
+                        {% if current_user.role == 'admin' %}
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">申请</a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="{{ url_for('routes.new_user_request') }}">系统用户新增申请</a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('routes.new_role_change_request') }}">系统用户角色修改申请</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('routes.my_requests') }}">我的申请记录</a></li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle position-relative" href="#" role="button" data-bs-toggle="dropdown">
+                                    管理
                                     {% if pending_requests_count %}
-                                    <span class="badge rounded-pill bg-danger">{{ pending_requests_count }}</span>
+                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.6em;">{{ pending_requests_count }}</span>
                                     {% endif %}
                                 </a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item d-flex justify-content-between align-items-center" href="{{ url_for('routes.pending_requests') }}">待执行申请 {% if pending_requests_count %}<span class="badge rounded-pill bg-danger">{{ pending_requests_count }}</span>{% endif %}</a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('routes.manage_users') }}">平台用户管理</a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('routes.manage_groups') }}">分组管理</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('routes.manage_scripts') }}">脚本管理</a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('routes.execute_dashboard') }}">远程执行</a></li>
+                                </ul>
                             </li>
-                            <li><a class="dropdown-item" href="{{ url_for('routes.manage_users') }}">平台用户管理</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('routes.manage_groups') }}">分组管理</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('routes.manage_scripts') }}">脚本管理</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('routes.execute_dashboard') }}">远程执行</a></li>
-                        </ul>
-                    </li>
-                    {% endif %}
+                        {% endif %}
                     {% endif %}
                 </ul>
                 <ul class="navbar-nav">
@@ -91,7 +93,6 @@
             </div>
         </div>
     </nav>
-
     <!-- 主内容区域 -->
     <main class="container-fluid mt-4">
         {% with messages = get_flashed_messages(with_categories=true) %}

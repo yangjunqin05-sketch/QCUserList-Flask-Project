@@ -16,6 +16,7 @@ from flask import session
 from collections import defaultdict
 import json
 
+
 bp = Blueprint('routes', __name__)
 
 @bp.before_request
@@ -34,15 +35,16 @@ def populate_group_choices(form):
         # coerce=int 后, '未分组' 选项的 value 应该是 '0' (一个可以被 int() 处理但又不是真实ID的值)
         form.group.choices = [(0, '未分组')] + [(g.id, g.name) for g in groups]
 # --- 装饰器 ---
-def admin_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or current_user.role != 'admin':
-            flash('此操作需要管理员权限。', 'danger')
-            return redirect(request.referrer or url_for('routes.index'))
-        return f(*args, **kwargs)
-    return decorated_function
-
+def roles_required(*roles):
+    def wrapper(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if not current_user.is_authenticated or current_user.role not in roles:
+                flash('您没有权限访问此页面。', 'danger')
+                return redirect(url_for('routes.index'))
+            return f(*args, **kwargs)
+        return decorated_function
+    return wrapper
 # --- 核心用户界面路由 ---
 
 @bp.route('/')
@@ -84,6 +86,7 @@ def find_or_create_system_account(username, chinese_name):
 
 @bp.route('/system/<int:system_id>', methods=['GET', 'POST'])
 @login_required
+@roles_required('admin', 'qc')
 def system_detail(system_id):
     system = System.query.get_or_404(system_id)
     scripts = Script.query.order_by(Script.name).all()
@@ -130,7 +133,7 @@ def system_detail(system_id):
 
 @bp.route('/system/enable_user_link/<link_type>/<int:link_id>', methods=['POST'])
 @login_required
-@admin_required
+@roles_required('admin')
 def enable_user_link(link_type, link_id):
     Model = SystemUser if link_type == 'computer' else WorkstationUser
     link = Model.query.get_or_404(link_id)
@@ -143,7 +146,7 @@ def enable_user_link(link_type, link_id):
 
 @bp.route('/system/<int:system_id>/batch_import', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@roles_required('admin')
 def batch_import_users(system_id):
     system = System.query.get_or_404(system_id)
     form = BatchImportForm()
@@ -201,12 +204,14 @@ def batch_import_users(system_id):
 
 @bp.route('/backup_dashboard')
 @login_required
+@roles_required('admin', 'qc')
 def backup_dashboard():
     systems = System.query.order_by(System.system_number).all()
     return render_template('backup_dashboard.html', title='系统备份清单', systems=systems)
 
 @bp.route('/restore_dashboard')
 @login_required
+@roles_required('admin', 'qc')
 def restore_dashboard():
     systems = System.query.order_by(System.system_number).all()
     return render_template('restore_verification_dashboard.html', title='备份还原验证清单', 
@@ -214,6 +219,7 @@ def restore_dashboard():
 
 @bp.route('/qa_dashboard')
 @login_required
+@roles_required('admin', 'qa')
 def qa_dashboard():
     """QA 核查列表页面 - 增加智能排序和“是否核查”开关"""
     group_filter_id = request.args.get('group', 0, type=int)
@@ -240,6 +246,7 @@ def qa_dashboard():
                            sort_by=sort_by)
 @bp.route('/user_directory')
 @login_required
+@roles_required('admin', 'qc')
 def user_directory():
     """全系统用户目录 - 按中文名归集显示"""
     search_term = request.args.get('search', '').strip()
@@ -292,6 +299,7 @@ def logout():
 
 @bp.route('/user_requests/new', methods=['GET', 'POST'])
 @login_required
+@roles_required('admin', 'qc')
 def new_user_request():
     form = UserRequestForm()
     
@@ -345,6 +353,7 @@ def new_user_request():
 
 @bp.route('/my_requests')
 @login_required
+@roles_required('admin', 'qc')
 def my_requests():
     add_reqs = UserRequest.query.filter_by(requested_by_id=current_user.id).order_by(UserRequest.request_date.desc()).all()
     # 使用正确的模型
@@ -360,6 +369,7 @@ def my_requests():
 
 @bp.route('/my_requests/<req_type>/<int:request_id>/cancel', methods=['POST'])
 @login_required
+@roles_required('admin', 'qc')
 def cancel_my_request(req_type, request_id):
     # 使用正确的 model_map
     model_map = {
@@ -388,6 +398,7 @@ def cancel_my_request(req_type, request_id):
 
 @bp.route('/user_requests/role_change', methods=['GET', 'POST'])
 @login_required
+@roles_required('admin', 'qc')
 def new_role_change_request():
     form = RoleChangeRequestForm()
     form.system.choices = [(0, '-- 请先选择一个系统 --')] + [(s.id, s.name) for s in System.query.order_by(System.name).all()]
@@ -430,6 +441,7 @@ def new_role_change_request():
 # --- 管理员功能路由 ---
 @bp.route('/user_requests/disable_person/<string:chinese_name>', methods=['POST'])
 @login_required
+@roles_required('admin', 'qc')
 def request_person_disable(chinese_name):
     accounts_to_disable = SystemAccount.query.filter_by(chinese_name=chinese_name).all()
     if not accounts_to_disable:
@@ -450,6 +462,7 @@ def request_person_disable(chinese_name):
 
 @bp.route('/user/request_partial_disable/<string:chinese_name>', methods=['POST'])
 @login_required
+@roles_required('admin', 'qc')
 def request_partial_disable(chinese_name):
     comp_link_ids = request.form.getlist('computer_links', type=int)
     ws_link_ids = request.form.getlist('workstation_links', type=int)
@@ -479,7 +492,7 @@ def request_partial_disable(chinese_name):
 
 @bp.route('/admin/requests')
 @login_required
-@admin_required
+@roles_required('admin', 'qc')
 def pending_requests():
     add_reqs = UserRequest.query.filter_by(status='pending').order_by(UserRequest.request_date.desc()).all()
     disable_reqs = DisableRequest.query.filter_by(status='pending').order_by(DisableRequest.request_date.desc()).all()
@@ -498,7 +511,7 @@ def pending_requests():
 
 @bp.route('/admin/requests/add/<int:request_id>/approve', methods=['POST'])
 @login_required
-@admin_required
+@roles_required('admin', 'qc')
 def approve_add_request(request_id):
     req = UserRequest.query.get_or_404(request_id)
     # 使用“找到或创建”逻辑
@@ -529,7 +542,7 @@ def approve_add_request(request_id):
 
 @bp.route('/admin/requests/menjin_delete/<int:request_id>/approve', methods=['POST'])
 @login_required
-@admin_required
+@roles_required('admin')
 def approve_menjin_del_request(request_id):
     from menjin.routes import execute_stored_procedure, get_sp_error_message
     req = MenjinDeletionRequest.query.get_or_404(request_id)
@@ -551,7 +564,7 @@ def approve_menjin_del_request(request_id):
 
 @bp.route('/admin/requests/partial_disable/<int:request_id>/approve', methods=['POST'])
 @login_required
-@admin_required
+@roles_required('admin')
 def approve_partial_disable_request(request_id):
     req = PartialDisableRequest.query.get_or_404(request_id)
     comp_links_info = req.get_system_links()
@@ -569,7 +582,7 @@ def approve_partial_disable_request(request_id):
     return redirect(url_for('routes.pending_requests'))
 @bp.route('/admin/requests/partial_disable/<int:request_id>/cancel', methods=['POST'])
 @login_required
-@admin_required
+@roles_required('admin')
 def cancel_partial_disable_request(request_id):
     # 查询的模型应该是 PartialDisableRequest，确保你的 models.py 中已经重命名
     # 如果还没有，请将下面的 PartialDisableRequest 改回 PartialDeletionRequest
@@ -598,7 +611,7 @@ def cancel_partial_disable_request(request_id):
 
 @bp.route('/admin/requests/menjin_delete/<int:request_id>/cancel', methods=['POST'])
 @login_required
-@admin_required
+@roles_required('admin')
 def cancel_menjin_del_request(request_id):
     req = MenjinDeletionRequest.query.get_or_404(request_id)
     if req.status == 'pending':
@@ -614,7 +627,7 @@ def cancel_menjin_del_request(request_id):
 
 @bp.route('/admin/requests/role_change/<int:request_id>/cancel', methods=['POST'])
 @login_required
-@admin_required
+@roles_required('admin')
 def cancel_role_change_request(request_id):
     """管理员撤销一个用户角色修改申请"""
     req = RoleChangeRequest.query.get_or_404(request_id)
@@ -636,7 +649,7 @@ def cancel_role_change_request(request_id):
 
 @bp.route('/admin/requests/add/<int:request_id>/cancel', methods=['POST'])
 @login_required
-@admin_required
+@roles_required('admin')
 def cancel_add_request(request_id):
     req = UserRequest.query.get_or_404(request_id)
     if req.status == 'pending':
@@ -649,7 +662,7 @@ def cancel_add_request(request_id):
 
 @bp.route('/admin/requests/disable/<int:request_id>/approve', methods=['POST'])
 @login_required
-@admin_required
+@roles_required('admin')
 def approve_disable_request(request_id):
     req = DisableRequest.query.get_or_404(request_id)
     account_to_disable = req.account_to_disable
@@ -666,7 +679,7 @@ def approve_disable_request(request_id):
 
 @bp.route('/admin/requests/disable/<int:request_id>/cancel', methods=['POST'])
 @login_required
-@admin_required
+@roles_required('admin')
 def cancel_disable_request(request_id):
     req = DisableRequest.query.get_or_404(request_id)
     if req.status == 'pending':
@@ -681,7 +694,7 @@ def cancel_disable_request(request_id):
 
 @bp.route('/admin/requests/delete/<int:request_id>/cancel', methods=['POST'])
 @login_required
-@admin_required
+@roles_required('admin')
 def cancel_del_request(request_id):
     req = DisableRequest.query.get_or_404(request_id)
     if req.status == 'pending':
@@ -695,14 +708,14 @@ def cancel_del_request(request_id):
 
 @bp.route('/admin/users')
 @login_required
-@admin_required
+@roles_required('admin')
 def manage_users():
     users = User.query.order_by(User.username).all()
     return render_template('manage_users.html', title='平台用户管理', users=users)
 
 @bp.route('/admin/users/edit/<int:user_id>', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@roles_required('admin')
 def edit_user(user_id):
     user = User.query.get_or_404(user_id) if user_id != 0 else None
     form = AdminUserForm(original_username=user.username if user else None)
@@ -731,7 +744,7 @@ def edit_user(user_id):
 
 @bp.route('/admin/users/delete/<int:user_id>', methods=['POST'])
 @login_required
-@admin_required
+@roles_required('admin')
 def delete_user(user_id):
     user_to_delete = User.query.get_or_404(user_id)
     if user_to_delete.id == current_user.id:
@@ -753,7 +766,7 @@ def delete_user(user_id):
 
 @bp.route('/system/<int:system_id>/edit', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@roles_required('admin')
 def edit_system(system_id):
     system = System.query.get_or_404(system_id)
     # 核心修正 1: 根据请求方法来决定如何初始化表单
@@ -806,7 +819,7 @@ def edit_system(system_id):
     return render_template('edit_system.html', title='编辑系统', form=form, system=system)
 @bp.route('/admin/groups', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@roles_required('admin')
 def manage_groups():
     form = GroupForm()
     if form.validate_on_submit():
@@ -820,7 +833,7 @@ def manage_groups():
 
 @bp.route('/admin/groups/edit/<int:group_id>', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@roles_required('admin')
 def edit_group(group_id):
     group = Group.query.get_or_404(group_id)
     form = GroupForm(original_name=group.name)
@@ -835,7 +848,7 @@ def edit_group(group_id):
 
 @bp.route('/admin/groups/delete/<int:group_id>', methods=['POST'])
 @login_required
-@admin_required
+@roles_required('admin')
 def delete_group(group_id):
     group_to_delete = Group.query.get_or_404(group_id)
     if group_to_delete.systems.first():
@@ -848,7 +861,7 @@ def delete_group(group_id):
 
 @bp.route('/qa/toggle_need/<int:system_id>', methods=['POST'])
 @login_required
-@admin_required
+@roles_required('admin','qa')
 def toggle_qa_check_need(system_id):
     """切换一个系统是否需要QA核查"""
     system = System.query.get_or_404(system_id)
@@ -861,7 +874,7 @@ def toggle_qa_check_need(system_id):
 
 @bp.route('/execute')
 @login_required
-@admin_required
+@roles_required('admin')
 def execute_dashboard():
     systems = System.query.filter(System.computer_name.isnot(None), System.computer_name != '').order_by(System.name).all()
     scripts = Script.query.order_by(Script.name).all()
@@ -871,7 +884,7 @@ def execute_dashboard():
 
 @bp.route('/admin/scripts', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@roles_required('admin')
 def manage_scripts():
     form = ScriptForm()
     if form.validate_on_submit():
@@ -889,7 +902,7 @@ def manage_scripts():
 
 @bp.route('/admin/scripts/edit/<int:script_id>', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@roles_required('admin')
 def edit_script(script_id):
     script = Script.query.get_or_404(script_id)
     form = ScriptForm(obj=script)
@@ -907,7 +920,7 @@ def edit_script(script_id):
 
 @bp.route('/admin/scripts/delete/<int:script_id>', methods=['POST'])
 @login_required
-@admin_required
+@roles_required('admin')
 def delete_script(script_id):
     script = Script.query.get_or_404(script_id)
     if Job.query.filter_by(script_id=script.id).first():
@@ -925,7 +938,7 @@ def delete_script(script_id):
 
 @bp.route('/system/add', methods=['POST'])
 @login_required
-@admin_required
+@roles_required('admin')
 def add_system():
     form = AddSystemForm()
     form.group.choices = [(0, 'Do not assign group')] + [(g.id, g.name) for g in Group.query.order_by(Group.name).all()]
@@ -942,7 +955,7 @@ def add_system():
 
 @bp.route('/admin/requests/role_change/<int:request_id>/approve', methods=['POST'])
 @login_required
-@admin_required
+@roles_required('admin')
 def approve_role_change_request(request_id):
     req = RoleChangeRequest.query.get_or_404(request_id)
     
@@ -985,7 +998,7 @@ def approve_role_change_request(request_id):
 
 @bp.route('/system/<int:system_id>/update_dates', methods=['POST'])
 @login_required
-@admin_required
+@roles_required('admin')
 def update_dates(system_id):
     system = System.query.get_or_404(system_id)
     last_date_str = request.form.get('last_check_date')
@@ -1008,7 +1021,7 @@ def update_dates(system_id):
 
 @bp.route('/system/delete/<int:system_id>', methods=['POST'])
 @login_required
-@admin_required
+@roles_required('admin')
 def delete_system(system_id):
     system = System.query.get_or_404(system_id)
     if system.system_users.first() or system.workstation_users.first():
@@ -1024,7 +1037,7 @@ def delete_system(system_id):
 
 @bp.route('/system/<int:system_id>/check_from_index', methods=['POST'])
 @login_required
-@admin_required
+@roles_required('admin')
 def perform_check_from_index(system_id):
     system = System.query.get_or_404(system_id)
     today = date.today()
@@ -1040,7 +1053,7 @@ def perform_check_from_index(system_id):
 
 @bp.route('/restore/update/<int:system_id>', methods=['POST'])
 @login_required
-@admin_required
+@roles_required('admin')
 def update_restore_info(system_id):
     system = System.query.get_or_404(system_id)
     system.is_restore_verified = 'is_restore_verified' in request.form
@@ -1060,7 +1073,7 @@ def update_restore_info(system_id):
 
 @bp.route('/qa/update_dates/<int:system_id>', methods=['POST'])
 @login_required
-@admin_required
+@roles_required('admin', 'qa')
 def update_qa_dates(system_id):
     system = System.query.get_or_404(system_id)
     last_date_str = request.form.get('qa_last_check_date')
@@ -1080,7 +1093,7 @@ def update_qa_dates(system_id):
 
 @bp.route('/qa/check/<int:system_id>', methods=['POST'])
 @login_required
-@admin_required
+@roles_required('admin', 'qa')
 def perform_qa_check(system_id):
     system = System.query.get_or_404(system_id)
     today = date.today()
@@ -1095,7 +1108,7 @@ def perform_qa_check(system_id):
     
 @bp.route('/assign_group/<int:user_id>', methods=['POST'])
 @login_required
-@admin_required
+@roles_required('admin')
 def assign_group(user_id):
     user = User.query.get_or_404(user_id)
     form = AssignGroupForm(prefix=f"form-{user.id}")
@@ -1110,7 +1123,7 @@ def assign_group(user_id):
 
 @bp.route('/job/cancel/<int:job_id>', methods=['POST'])
 @login_required
-@admin_required
+@roles_required('admin')
 def cancel_job(job_id):
     job_to_cancel = Job.query.get_or_404(job_id)
     if job_to_cancel.status == 'pending':
@@ -1213,7 +1226,7 @@ def get_system_users_api(system_id):
 
 @bp.route('/api/system/<int:system_id>/execute_job', methods=['POST'])
 @login_required
-@admin_required
+@roles_required('admin')
 def execute_job(system_id):
     system = System.query.get_or_404(system_id)
     script_id = request.json.get('script_id')
@@ -1226,7 +1239,7 @@ def execute_job(system_id):
 
 @bp.route('/api/job/<int:job_id>/status')
 @login_required
-@admin_required
+@roles_required('admin')
 def get_job_status(job_id):
     job = Job.query.get_or_404(job_id)
     return jsonify({'status': job.status, 'output': job.output, 'completed_at': job.completed_at.strftime('%Y-%m-%d %H:%M:%S') if job.completed_at else None})
