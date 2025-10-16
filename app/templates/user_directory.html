@@ -131,9 +131,8 @@
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('user-search-input');
     const tableBody = document.getElementById('user-directory-body');
-    const userRole = "{{ current_user.role }}"; // 将用户角色注入JS
+    const userRole = "{{ current_user.role }}";
 
-    // 节流函数，防止过于频繁的API请求
     function throttle(func, delay) {
         let timeout = null;
         return function(...args) {
@@ -146,7 +145,6 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     }
 
-    // 获取并渲染用户数据的主函数
     async function fetchUsers() {
         const searchTerm = searchInput.value;
         tableBody.innerHTML = `<tr><td colspan="4" class="text-center text-muted">正在加载...</td></tr>`;
@@ -166,8 +164,6 @@ document.addEventListener('DOMContentLoaded', function() {
             data.forEach(person => {
                 const numAccounts = person.accounts.length;
                 let rowsHtml = '';
-
-                // 渲染第一个账号
                 const firstAccount = person.accounts[0];
                 let systemsHtml = '<ul class="list-unstyled mb-0 small">';
                 for (const [systemName, roles] of Object.entries(firstAccount.systems)) {
@@ -181,9 +177,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 let actionButtons = '';
                 if (userRole === 'admin' || userRole === 'qc') {
+                    // 核心修正：在动态生成的HTML中，也使用 onsubmit="confirmFullDisable(...)"
                     actionButtons = `
                         <td rowspan="${numAccounts}" style="vertical-align: middle;">
-                            <form action="/user_requests/disable_person/${person.chinese_name}" method="POST" onsubmit="return confirm('...')" class="d-inline">
+                            <form action="/user_requests/disable_person/${person.chinese_name}" method="POST" onsubmit="confirmFullDisable(event, '${person.chinese_name}')" class="d-inline">
                                 <button type="submit" class="btn btn-danger btn-sm">全部禁用</button>
                             </form>
                             <button type="button" class="btn btn-warning btn-sm d-inline ms-1" onclick="openPartialDisableModal('${person.chinese_name}')">部分禁用</button>
@@ -191,20 +188,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     `;
                 }
 
-                rowsHtml += `
-                    <tr>
-                        <td rowspan="${numAccounts}" style="vertical-align: middle;"><strong>${person.chinese_name}</strong></td>
-                        <td><code>${firstAccount.username}</code></td>
-                        <td>${systemsHtml}</td>
-                        ${actionButtons}
-                    </tr>
-                `;
+                rowsHtml += `<tr><td rowspan="${numAccounts}" style="vertical-align: middle;"><strong>${person.chinese_name}</strong></td><td><code>${firstAccount.username}</code></td><td>${systemsHtml}</td>${actionButtons}</tr>`;
 
-                // 渲染剩余的账号
                 for (let i = 1; i < numAccounts; i++) {
                     const account = person.accounts[i];
                     let otherSystemsHtml = '<ul class="list-unstyled mb-0 small">';
-                    // ... (构建其他账号的权限显示) ...
+                    for (const [systemName, roles] of Object.entries(account.systems)) {
+                         otherSystemsHtml += `<li><strong>${systemName}:</strong> ... </li>`;
+                    }
                     otherSystemsHtml += '</ul>';
                     rowsHtml += `<tr><td><code>${account.username}</code></td><td>${otherSystemsHtml}</td></tr>`;
                 }
@@ -214,14 +205,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
         } catch (error) {
             console.error('获取用户目录失败:', error);
-            tableBody.innerHTML = `<tr><td colspan="4" class="text-center text-danger">加载数据失败，请检查网络或联系管理员。</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="4" class="text-center text-danger">加载数据失败...</td></tr>`;
         }
     }
 
-    // 绑定事件
-    searchInput.addEventListener('input', throttle(fetchUsers, 400)); // 400ms延迟
-
-    // 初始加载
+    searchInput.addEventListener('input', throttle(fetchUsers, 400));
     fetchUsers();
 });
 
@@ -231,9 +219,8 @@ async function confirmFullDisable(event, chineseName) {
     event.preventDefault(); 
     const form = event.target;
     const disableSystemAccess = confirm(`警告：确定要为 “${chineseName}” 的所有活动账户申请【禁用】吗？`);
-    if (!disableSystemAccess) {
-        return;
-    }
+    if (!disableSystemAccess) return;
+    
     const syncMenjin = confirm(`是否需要为 “${chineseName}” 同步处理【门禁权限】？\n\n- 点击 [确定] 将在提交后，跳转到门禁页面。\n- 点击 [取消] 将仅提交系统权限的禁用申请。`);
     if (syncMenjin) {
         try {
@@ -253,7 +240,6 @@ async function confirmFullDisable(event, chineseName) {
         form.submit();
     }
 }
-
 // 函数2: “部分禁用”按钮的弹窗功能
 async function openPartialDisableModal(chineseName) {
     const modalElement = document.getElementById('partialDisableModal');
