@@ -1041,7 +1041,7 @@ def update_dates(system_id):
             system.next_check_date = date.fromisoformat(next_date_str)
             flash(f'系统 "{system.name}" 的下一次核查日期已手动更新。', 'info')
     db.session.commit()
-    return redirect(url_for('routes.index'))
+    return redirect(url_for('routes.it_check_manage'))
 
 @bp.route('/system/delete/<int:system_id>', methods=['POST'])
 @login_required
@@ -1053,11 +1053,11 @@ def delete_system(system_id):
         return redirect(url_for('routes.index'))
     if Job.query.filter_by(system_id=system.id).first():
         flash(f'无法删除系统 "{system.name}"，因为它存在关联的任务执行记录。', 'danger')
-        return redirect(url_for('routes.index'))
+        return redirect(url_for('routes.it_check_manage'))
     db.session.delete(system)
     db.session.commit()
     flash(f'系统 "{system.name}" 已被成功删除。', 'success')
-    return redirect(url_for('routes.index'))
+    return redirect(url_for('routes.it_check_manage'))
 
 @bp.route('/system/<int:system_id>/check_from_index', methods=['POST'])
 @login_required
@@ -1073,7 +1073,7 @@ def perform_check_from_index(system_id):
         system.next_check_date = today + timedelta(days=system.check_frequency_days)
     db.session.commit()
     flash(f'系统 "{system.name}" 已核查，下一次核查时间已更新。', 'success')
-    return redirect(url_for('routes.index'))
+    return redirect(url_for('routes.it_check_manage'))
 
 @bp.route('/restore/update/<int:system_id>', methods=['POST'])
 @login_required

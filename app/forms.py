@@ -6,7 +6,8 @@ from wtforms import (StringField, PasswordField, BooleanField, SubmitField,
                      SelectMultipleField, widgets)
 from wtforms.validators import DataRequired, NumberRange, Optional, IPAddress, ValidationError, Length, EqualTo
 from app.models import System, Group, User,SystemAccount
-
+from wtforms.validators import DataRequired, NumberRange, Optional, IPAddress, ValidationError, Length, EqualTo
+import re
 # --- 辅助类 ---
 
 class MultiCheckboxField(SelectMultipleField):
@@ -118,7 +119,15 @@ class UserRequestForm(FlaskForm):
     target_system = SelectField('选择目标系统', coerce=int, validators=[DataRequired(message="请选择一个目标系统。")])
     
     submit = SubmitField('提交申请')
-
+    def validate_username(self, username):
+        """
+        自定义验证器，确保用户名只包含字母和数字。
+        """
+        # 正则表达式：^ 和 $ 表示字符串的开始和结束
+        # [a-zA-Z0-9]+ 表示一个或多个大小写字母或数字
+        if not re.match('^[a-zA-Z0-9]+$', username.data):
+            # 如果不匹配，则引发一个验证错误，这个错误消息会显示在前端
+            raise ValidationError('用户名只能包含英文字母和数字。')
     # 验证器现在可以保持简单，因为审批端会处理最终逻辑
     def validate_username(self, username):
         if username.data != username.data.strip():

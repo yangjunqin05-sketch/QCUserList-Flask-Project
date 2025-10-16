@@ -14,28 +14,51 @@
                         <div class="row g-3">
                             <div class="col-md-6">
                                 {{ form.username.label(class="form-label") }}
-                                <!-- 添加 autocomplete="off" -->
                                 {{ form.username(class="form-control", autocomplete="off") }}
-                                {% if form.username.errors %}<div class="invalid-feedback d-block">{{ form.username.errors[0] }}</div>{% endif %}
+                                {# 核心修正：确保错误信息能够被渲染 #}
+                                {% if form.username.errors %}
+                                    <div class="invalid-feedback d-block">
+                                    {% for error in form.username.errors %}
+                                        <span>{{ error }}</span><br>
+                                    {% endfor %}
+                                    </div>
+                                {% endif %}
                             </div>
                             <div class="col-md-6">
                                 {{ form.chinese_name.label(class="form-label") }}
-                                <!-- 添加 autocomplete="off" -->
                                 {{ form.chinese_name(class="form-control", autocomplete="off") }}
+                                {# 为中文名也添加错误显示，以防未来增加验证 #}
+                                {% if form.chinese_name.errors %}
+                                    <div class="invalid-feedback d-block">
+                                    {% for error in form.chinese_name.errors %}
+                                        <span>{{ error }}</span><br>
+                                    {% endfor %}
+                                    </div>
+                                {% endif %}
                             </div>
                             
                             <div class="col-md-6">
                                 {{ form.computer_role.label(class="form-label") }}
-                                <!-- 添加 autocomplete="off" -->
                                 {{ form.computer_role(class="form-control", list="computer-roles-list", autocomplete="off") }}
-                                <datalist id="computer-roles-list"></datalist>
+                                {% if form.computer_role.errors %}
+                                    <div class="invalid-feedback d-block">
+                                    {% for error in form.computer_role.errors %}
+                                        <span>{{ error }}</span><br>
+                                    {% endfor %}
+                                    </div>
+                                {% endif %}
                             </div>
 
                             <div class="col-md-6">
                                 {{ form.workstation_role.label(class="form-label") }}
-                                <!-- 添加 autocomplete="off" -->
                                 {{ form.workstation_role(class="form-control", list="workstation-roles-list", autocomplete="off") }}
-                                <datalist id="workstation-roles-list"></datalist>
+                                {% if form.workstation_role.errors %}
+                                    <div class="invalid-feedback d-block">
+                                    {% for error in form.workstation_role.errors %}
+                                        <span>{{ error }}</span><br>
+                                    {% endfor %}
+                                    </div>
+                                {% endif %}
                             </div>
                         </div>
                     </fieldset>
@@ -50,7 +73,13 @@
                             </select>
                         </div>
                         {{ form.target_system(class="form-select") }}
-                        {% if form.target_system.errors %}<div class="invalid-feedback d-block">{{ form.target_system.errors[0] }}</div>{% endif %}
+                        {% if form.target_system.errors %}
+                            <div class="invalid-feedback d-block">
+                            {% for error in form.target_system.errors %}
+                                <span>{{ error }}</span><br>
+                            {% endfor %}
+                            </div>
+                        {% endif %}
                     </fieldset>
                     
                     <fieldset>
