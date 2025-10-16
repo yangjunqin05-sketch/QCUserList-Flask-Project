@@ -1,5 +1,4 @@
-<!-- app/templates/my_requests.html -->
-
+<!-- app/templates/my_requests.html (最终功能完整版) -->
 {% extends "base.html" %}
 
 {% block content %}
@@ -14,21 +13,13 @@
             <div class="table-responsive">
                 <table class="table table-sm table-hover align-middle">
                     <thead class="table-light">
-                        <tr>
-                            <th>申请日期</th>
-                            <th>申请用户</th>
-                            <!-- 新增列 -->
-                            <th>目标系统</th>
-                            <th>状态</th>
-                            <th>操作</th>
-                        </tr>
+                        <tr><th>申请日期</th><th>申请用户</th><th>目标系统</th><th>状态</th><th>操作</th></tr>
                     </thead>
                     <tbody>
                         {% for req in add_requests %}
                         <tr>
                             <td>{{ req.request_date.strftime('%Y-%m-%d %H:%M') }}</td>
                             <td>{{ req.chinese_name }} ({{ req.username }})</td>
-                            <!-- 新增列的数据 -->
                             <td>
                                 {% set system = all_systems.get(req.target_systems|int) %}
                                 {{ system.name if system else '未知系统' }}
@@ -54,18 +45,18 @@
         </div>
     </div>
     
-    <!-- 用户删除申请记录 -->
+    <!-- 用户禁用申请记录 -->
     <div class="card mb-4">
-        <div class="card-header"><h4><i class="bi bi-person-dash-fill me-2"></i>我提交的删除申请</h4></div>
+        <div class="card-header"><h4><i class="bi bi-person-dash-fill me-2"></i>我提交的禁用申请</h4></div>
         <div class="card-body">
-            {% if del_requests %}
+            {% if disable_requests %}
             <table class="table table-sm table-hover align-middle">
-                <thead><tr><th>申请日期</th><th>申请删除的用户</th><th>状态</th><th>操作</th></tr></thead>
+                <thead><tr><th>申请日期</th><th>申请禁用的用户</th><th>状态</th><th>操作</th></tr></thead>
                 <tbody>
-                    {% for req in del_requests %}
+                    {% for req in disable_requests %}
                     <tr>
                         <td>{{ req.request_date.strftime('%Y-%m-%d') }}</td>
-                        <td>{{ req.account_to_delete.chinese_name }} ({{ req.account_to_delete.username }})</td>
+                        <td>{{ req.account_to_disable.chinese_name }} ({{ req.account_to_disable.username }})</td>
                         <td>
                            {% if req.status == 'pending' %}<span class="badge bg-warning text-dark">待处理</span>
                            {% elif req.status == 'completed' %}<span class="badge bg-success">已完成</span>
@@ -73,7 +64,7 @@
                         </td>
                         <td>
                             {% if req.status == 'pending' %}
-                            <form action="{{ url_for('routes.cancel_my_request', req_type='delete', request_id=req.id) }}" method="POST">
+                            <form action="{{ url_for('routes.cancel_my_request', req_type='disable', request_id=req.id) }}" method="POST">
                                 <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('确定要撤销此申请吗？')">撤销</button>
                             </form>
                             {% endif %}
@@ -82,7 +73,49 @@
                     {% endfor %}
                 </tbody>
             </table>
-            {% else %}<p class="text-muted">您没有提交过用户删除申请。</p>{% endif %}
+            {% else %}<p class="text-muted">您没有提交过用户禁用申请。</p>{% endif %}
+        </div>
+    </div>
+    
+    <!-- 核心修正：新增部分禁用申请记录卡片 -->
+    <div class="card mb-4">
+        <div class="card-header"><h4><i class="bi bi-scissors me-2"></i>我提交的部分禁用申请</h4></div>
+        <div class="card-body">
+            {% if partial_disable_requests %}
+            <table class="table table-sm table-hover align-middle">
+                <thead><tr><th>申请日期</th><th>目标用户</th><th>待禁用权限</th><th>状态</th><th>操作</th></tr></thead>
+                <tbody>
+                    {% for req in partial_disable_requests %}
+                    <tr>
+                        <td>{{ req.request_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>{{ req.chinese_name }}</td>
+                        <td>
+                            <ul class="list-unstyled mb-0 small">
+                                {% for link in req.get_system_links() %}
+                                    <li><span class="badge bg-info text-dark me-1">电脑</span><strong>{{ link.system }}:</strong> {{ link.role }}</li>
+                                {% endfor %}
+                                {% for link in req.get_workstation_links() %}
+                                     <li><span class="badge bg-primary me-1">工作站</span><strong>{{ link.system }}:</strong> {{ link.role }}</li>
+                                {% endfor %}
+                            </ul>
+                        </td>
+                        <td>
+                           {% if req.status == 'pending' %}<span class="badge bg-warning text-dark">待处理</span>
+                           {% elif req.status == 'completed' %}<span class="badge bg-success">已完成</span>
+                           {% else %}<span class="badge bg-secondary">{{ req.status }}</span>{% endif %}
+                        </td>
+                        <td>
+                            {% if req.status == 'pending' %}
+                            <form action="{{ url_for('routes.cancel_my_request', req_type='partial_disable', request_id=req.id) }}" method="POST">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('确定要撤销此申请吗？')">撤销</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}<p class="text-muted">您没有提交过部分禁用申请。</p>{% endif %}
         </div>
     </div>
 

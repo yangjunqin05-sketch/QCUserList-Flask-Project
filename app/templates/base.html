@@ -37,7 +37,7 @@
                             <li class="nav-item"><a class="nav-link {% if request.endpoint == 'routes.it_check_manage' %}active{% endif %}" href="{{ url_for('routes.it_check_manage') }}">IT核查管理</a></li>
                         {# QC组看到的是“IT核查清单”，并链接到只读的首页 #}
                         {% elif current_user.role == 'qc' %}
-                            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'routes.index' %}active{% endif %}" href="{{ url_for('routes.index') }}">IT核查清单</a></li>
+                            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'routes.index' %}active{% endif %}" href="{{url_for('routes.it_check_manage') }}">IT核查清单</a></li>
                         {% endif %}
 
                         {# --- 管理员 和 QC组 都能看到的其他菜单 --- #}

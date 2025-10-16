@@ -47,6 +47,20 @@ def roles_required(*roles):
     return wrapper
 # --- 核心用户界面路由 ---
 
+def find_or_create_system_account(username, chinese_name):
+    # 查找账户时忽略大小写
+    account = SystemAccount.query.filter(SystemAccount.username.ilike(username.strip())).first()
+    if not account:
+        # 如果不存在，则创建一个新账户
+        account = SystemAccount(username=username.strip(), chinese_name=chinese_name.strip())
+        db.session.add(account)
+        # flush 会将新对象写入数据库会话，使其获得一个ID，但尚未提交事务
+        db.session.flush()
+    elif account.chinese_name != chinese_name.strip():
+        # 如果账户已存在但中文名不同，则更新中文名
+        account.chinese_name = chinese_name.strip()
+    return account
+
 @bp.route('/')
 @bp.route('/index')
 @login_required
@@ -65,7 +79,7 @@ def index():
 
 @bp.route('/it_check_manage')
 @login_required
-@roles_required('admin')
+@roles_required('admin','qc')
 def it_check_manage():
     # --- 确保所有需要的变量都已定义 ---
     group_filter_id = request.args.get('group', 0, type=int)
@@ -236,7 +250,7 @@ def restore_dashboard():
 
 @bp.route('/qa_dashboard')
 @login_required
-@roles_required('admin', 'qa')
+@roles_required('admin', 'qa', 'qc')
 def qa_dashboard():
     """QA 核查列表页面 - 增加智能排序和“是否核查”开关"""
     group_filter_id = request.args.get('group', 0, type=int)
@@ -473,6 +487,17 @@ def request_person_disable(chinese_name):
     if not accounts_to_disable:
         flash(f'找不到中文名为 “{chinese_name}” 的用户。', 'danger')
         return redirect(url_for('routes.user_directory'))
+
+    existing_request = False
+    for account in accounts_to_disable:
+        if DisableRequest.query.filter_by(account_to_disable_id=account.id, status='pending').first():
+            existing_request = True
+            break
+    if existing_request:
+        flash(f'“{chinese_name}” 已存在一个待处理的禁用申请，请勿重复提交。', 'warning')
+        return redirect(url_for('routes.user_directory'))
+
+
     created_count = 0
     for account in accounts_to_disable:
         if not DisableRequest.query.filter_by(account_to_disable_id=account.id, status='pending').first():
@@ -495,6 +520,12 @@ def request_partial_disable(chinese_name):
     if not comp_link_ids and not ws_link_ids:
         flash('您没有选择任何要禁用的权限。', 'warning')
         return redirect(url_for('routes.user_directory'))
+    existing_request = PartialDisableRequest.query.filter_by(chinese_name=chinese_name, status='pending').first()
+    if existing_request:
+        flash(f'用户 “{chinese_name}” 已有一个待处理的部分禁用申请，请等待管理员处理后再提交新的申请。', 'warning')
+        return redirect(url_for('routes.user_directory'))
+    
+
     comp_links_info = []
     if comp_link_ids:
         links = SystemUser.query.filter(SystemUser.id.in_(comp_link_ids)).all()

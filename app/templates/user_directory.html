@@ -1,4 +1,4 @@
-<!-- app/templates/user_directory.html (最终功能完整版) -->
+<!-- app/templates/user_directory.html (最终功能修复版) -->
 
 {% extends "base.html" %}
 
@@ -31,7 +31,7 @@
                             <th scope="col" style="width: 15%;">中文名</th>
                             <th scope="col" style="width: 15%;">用户名</th>
                             <th scope="col" style="width: 55%;">所在系统及角色 (仅显示活动权限)</th>
-                            {% if current_user.role == 'admin', 'qc' %}
+                            {% if current_user.role in ['admin', 'qc'] %}
                             <th scope="col" style="width: 15%;">操作</th>
                             {% endif %}
                         </tr>
@@ -51,7 +51,7 @@
                                     {% endfor %}
                                 </ul>
                             </td>
-                            {% if current_user.role == 'admin', 'qc' %}
+                            {% if current_user.role in ['admin', 'qc'] %}
                             <td rowspan="{{ accounts|length }}" style="vertical-align: middle;">
                                 <form action="{{ url_for('routes.request_person_disable', chinese_name=chinese_name) }}" method="POST" 
                                       onsubmit="confirmFullDisable(event, '{{ chinese_name }}')" class="d-inline">
@@ -96,13 +96,13 @@
       </div>
       <form id="modal-form" method="POST">
           <div class="modal-body">
-            <p class="text-muted">请勾选需要禁用的权限：</p>
+            <p class="text-muted">请勾选需要禁用的权限，勾选系统名称可全选该系统下的所有权限。</p>
             <div id="modal-body-content">
                 <div class="text-center my-3"><div class="spinner-border" role="status"><span class="visually-hidden">正在加载...</span></div></div>
             </div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+            <button type="button" class="btn-secondary" data-bs-dismiss="modal">取消</button>
             <button type="submit" class="btn btn-primary">提交申请</button>
           </div>
       </form>
@@ -113,9 +113,9 @@
 
 {% block scripts %}
 {{ super() }}
-<!-- 确保两个JavaScript函数都存在 -->
+<!-- 核心修正：确保两个主要功能函数都存在 -->
 <script>
-// “全部禁用”按钮的联动门禁功能
+// 函数1: “全部禁用”按钮的联动门禁功能
 async function confirmFullDisable(event, chineseName) {
     event.preventDefault(); 
     const form = event.target;
@@ -143,7 +143,7 @@ async function confirmFullDisable(event, chineseName) {
     }
 }
 
-// “部分禁用”按钮的弹窗功能
+// 函数2: “部分禁用”按钮的弹窗功能
 async function openPartialDisableModal(chineseName) {
     const modalElement = document.getElementById('partialDisableModal');
     if (!modalElement) {
@@ -165,29 +165,53 @@ async function openPartialDisableModal(chineseName) {
         if (!response.ok) throw new Error('网络响应错误');
         const data = await response.json();
         
+        const systemsMap = {};
+        data.computer_links.forEach(link => {
+            if (!systemsMap[link.system_name]) systemsMap[link.system_name] = { computer: [], workstation: [] };
+            systemsMap[link.system_name].computer.push(link);
+        });
+        data.workstation_links.forEach(link => {
+            if (!systemsMap[link.system_name]) systemsMap[link.system_name] = { computer: [], workstation: [] };
+            systemsMap[link.system_name].workstation.push(link);
+        });
+        const systemNames = Object.keys(systemsMap);
         let content = '<p class="text-muted">该用户没有可供禁用的活动权限。</p>';
-        if (data.computer_links.length > 0 || data.workstation_links.length > 0) {
+        if (systemNames.length > 0) {
             content = '';
-            if (data.computer_links.length > 0) {
-                content += '<fieldset class="mb-3"><legend class="h6">电脑用户权限</legend>';
-                data.computer_links.forEach(link => {
-                    content += `<div class="form-check"><input class="form-check-input" type="checkbox" name="computer_links" value="${link.id}" id="comp-link-${link.id}"><label class="form-check-label" for="comp-link-${link.id}"><strong>${link.system_name}:</strong> ${link.role}</label></div>`;
-                });
-                content += '</fieldset>';
-            }
-            if (data.workstation_links.length > 0) {
-                content += '<fieldset><legend class="h6">工作站用户权限</legend>';
-                data.workstation_links.forEach(link => {
-                    content += `<div class="form-check"><input class="form-check-input" type="checkbox" name="workstation_links" value="${link.id}" id="ws-link-${link.id}"><label class="form-check-label" for="ws-link-${link.id}"><strong>${link.system_name}:</strong> ${link.role}</label></div>`;
-                });
-                content += '</fieldset>';
-            }
+            systemNames.forEach((systemName, index) => {
+                const systemLinks = systemsMap[systemName];
+                const safeSystemNameClass = systemName.replace(/[^a-zA-Z0-9]/g, '-');
+                content += `<fieldset class="mb-3 border p-2 rounded"><legend class="h6"><div class="form-check"><input class="form-check-input" type="checkbox" id="system-master-check-${index}" onchange="toggleSystemChecks('${safeSystemNameClass}', this.checked)"><label class="form-check-label fw-bold" for="system-master-check-${index}">${systemName}</label></div></legend>`;
+                if (systemLinks.computer.length > 0) {
+                    content += '<div class="ms-4">';
+                    systemLinks.computer.forEach(link => {
+                        content += `<div class="form-check"><input class="form-check-input system-check-${safeSystemNameClass}" type="checkbox" name="computer_links" value="${link.id}" id="comp-link-${link.id}"><label class="form-check-label" for="comp-link-${link.id}"><span class="badge bg-info text-dark me-1">电脑用户</span> ${link.role}</label></div>`;
+                    });
+                    content += '</div>';
+                }
+                if (systemLinks.workstation.length > 0) {
+                    content += '<div class="ms-4 mt-1">';
+                    systemLinks.workstation.forEach(link => {
+                        content += `<div class="form-check"><input class="form-check-input system-check-${safeSystemNameClass}" type="checkbox" name="workstation_links" value="${link.id}" id="ws-link-${link.id}"><label class="form-check-label" for="ws-link-${link.id}"><span class="badge bg-primary me-1">工作站</span> ${link.role}</label></div>`;
+                    });
+                    content += '</div>';
+                }
+                content += `</fieldset>`;
+            });
         }
         modalBodyContent.innerHTML = content;
     } catch (error) {
         console.error("加载权限失败:", error);
         modalBodyContent.innerHTML = '<p class="text-danger">加载用户权限列表失败，请稍后重试。</p>';
     }
+}
+
+// 函数3: “部分禁用”的联动勾选辅助函数
+function toggleSystemChecks(systemName, isChecked) {
+    const checkboxes = document.querySelectorAll(`.system-check-${systemName}`);
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = isChecked;
+    });
 }
 </script>
 {% endblock %}
