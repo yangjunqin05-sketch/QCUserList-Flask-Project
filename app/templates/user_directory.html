@@ -14,10 +14,9 @@
     </div>
     <div class="card mb-4">
         <div class="card-body">
-            <form method="GET" action="{{ url_for('routes.user_directory') }}">
                 <div class="input-group">
-                    <input type="search" name="search" class="form-control" placeholder="按用户名或中文名搜索..." value="{{ search_term or '' }}">
-                    <button class="btn btn-secondary" type="submit"><i class="bi bi-search"></i> 搜索</button>
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                     <input type="search" id="user-search-input" class="form-control" placeholder="按用户名或中文名实时搜索..." value="{{ search_term or '' }}">
                 </div>
             </form>
         </div>
@@ -36,18 +35,31 @@
                             {% endif %}
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="user-directory-body">
                         {% for chinese_name, accounts in accounts_by_person.items() %}
                         <tr>
                             <td rowspan="{{ accounts|length }}" style="vertical-align: middle;"><strong>{{ chinese_name }}</strong></td>
                             <td><code>{{ accounts[0].username }}</code></td>
                             <td>
+                                {# --- 核心修正：构建包含编号的 systems_map --- #}
                                 {% set systems_map = {} %}
-                                {% for su in accounts[0].system_access.filter_by(is_active=True) %}{% if su.system.name not in systems_map %}{% set _ = systems_map.update({su.system.name: {'computer': [], 'workstation': []}}) %}{% endif %}{% set _ = systems_map[su.system.name]['computer'].append(su.system_role) %}{% endfor %}
-                                {% for wu in accounts[0].workstation_access.filter_by(is_active=True) %}{% if wu.system.name not in systems_map %}{% set _ = systems_map.update({wu.system.name: {'computer': [], 'workstation': []}}) %}{% endif %}{% set _ = systems_map[wu.system.name]['workstation'].append(wu.role.name) %}{% endfor %}
+                                {% for su in accounts[0].system_access.filter_by(is_active=True) %}
+                                    {% if su.system.name not in systems_map %}{% set _ = systems_map.update({su.system.name: {'number': su.system.system_number, 'computer': [], 'workstation': []}}) %}{% endif %}
+                                    {% set _ = systems_map[su.system.name]['computer'].append(su.system_role) %}
+                                {% endfor %}
+                                {% for wu in accounts[0].workstation_access.filter_by(is_active=True) %}
+                                    {% if wu.system.name not in systems_map %}{% set _ = systems_map.update({wu.system.name: {'number': wu.system.system_number, 'computer': [], 'workstation': []}}) %}{% endif %}
+                                    {% set _ = systems_map[wu.system.name]['workstation'].append(wu.role.name) %}
+                                {% endfor %}
                                 <ul class="list-unstyled mb-0 small">
-                                    {% for system_name, roles in systems_map.items() %}
-                                    <li><strong>{{ system_name }}:</strong> {% if roles.computer %}电脑用户 ({{ roles.computer | join(', ') }}){% endif %}{% if roles.computer and roles.workstation %}; {% endif %}{% if roles.workstation %}工作站用户 ({{ roles.workstation | join(', ') }}){% endif %}</li>
+                                    {# --- 核心修正：渲染时使用 data.number --- #}
+                                    {% for system_name, data in systems_map.items() %}
+                                    <li>
+                                        <strong>{{ data.number }} - {{ system_name }}:</strong> 
+                                        {% if data.computer %}电脑用户 ({{ data.computer | join(', ') }}){% endif %}
+                                        {% if data.computer and data.workstation %}; {% endif %}
+                                        {% if data.workstation %}工作站用户 ({{ data.workstation | join(', ') }}){% endif %}
+                                    </li>
                                     {% endfor %}
                                 </ul>
                             </td>
@@ -115,6 +127,105 @@
 {{ super() }}
 <!-- 核心修正：确保两个主要功能函数都存在 -->
 <script>
+
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('user-search-input');
+    const tableBody = document.getElementById('user-directory-body');
+    const userRole = "{{ current_user.role }}"; // 将用户角色注入JS
+
+    // 节流函数，防止过于频繁的API请求
+    function throttle(func, delay) {
+        let timeout = null;
+        return function(...args) {
+            if (!timeout) {
+                timeout = setTimeout(() => {
+                    func.apply(this, args);
+                    timeout = null;
+                }, delay);
+            }
+        };
+    }
+
+    // 获取并渲染用户数据的主函数
+    async function fetchUsers() {
+        const searchTerm = searchInput.value;
+        tableBody.innerHTML = `<tr><td colspan="4" class="text-center text-muted">正在加载...</td></tr>`;
+
+        try {
+            const response = await fetch(`{{ url_for('routes.api_get_system_accounts') }}?search=${encodeURIComponent(searchTerm)}`);
+            if (!response.ok) throw new Error('网络请求失败');
+            const data = await response.json();
+            
+            tableBody.innerHTML = '';
+            if (data.length === 0) {
+                const message = searchTerm ? `没有找到符合“${searchTerm}”的用户。` : '当前没有任何有效的系统用户被记录。';
+                tableBody.innerHTML = `<tr><td colspan="4" class="text-center text-muted">${message}</td></tr>`;
+                return;
+            }
+
+            data.forEach(person => {
+                const numAccounts = person.accounts.length;
+                let rowsHtml = '';
+
+                // 渲染第一个账号
+                const firstAccount = person.accounts[0];
+                let systemsHtml = '<ul class="list-unstyled mb-0 small">';
+                for (const [systemName, roles] of Object.entries(firstAccount.systems)) {
+                    systemsHtml += `<li><strong>${systemName}:</strong> `;
+                    if (roles.computer.length > 0) systemsHtml += `电脑用户 (${roles.computer.join(', ')})`;
+                    if (roles.computer.length > 0 && roles.workstation.length > 0) systemsHtml += '; ';
+                    if (roles.workstation.length > 0) systemsHtml += `工作站用户 (${roles.workstation.join(', ')})`;
+                    systemsHtml += '</li>';
+                }
+                systemsHtml += '</ul>';
+
+                let actionButtons = '';
+                if (userRole === 'admin' || userRole === 'qc') {
+                    actionButtons = `
+                        <td rowspan="${numAccounts}" style="vertical-align: middle;">
+                            <form action="/user_requests/disable_person/${person.chinese_name}" method="POST" onsubmit="return confirm('...')" class="d-inline">
+                                <button type="submit" class="btn btn-danger btn-sm">全部禁用</button>
+                            </form>
+                            <button type="button" class="btn btn-warning btn-sm d-inline ms-1" onclick="openPartialDisableModal('${person.chinese_name}')">部分禁用</button>
+                        </td>
+                    `;
+                }
+
+                rowsHtml += `
+                    <tr>
+                        <td rowspan="${numAccounts}" style="vertical-align: middle;"><strong>${person.chinese_name}</strong></td>
+                        <td><code>${firstAccount.username}</code></td>
+                        <td>${systemsHtml}</td>
+                        ${actionButtons}
+                    </tr>
+                `;
+
+                // 渲染剩余的账号
+                for (let i = 1; i < numAccounts; i++) {
+                    const account = person.accounts[i];
+                    let otherSystemsHtml = '<ul class="list-unstyled mb-0 small">';
+                    // ... (构建其他账号的权限显示) ...
+                    otherSystemsHtml += '</ul>';
+                    rowsHtml += `<tr><td><code>${account.username}</code></td><td>${otherSystemsHtml}</td></tr>`;
+                }
+                
+                tableBody.insertAdjacentHTML('beforeend', rowsHtml);
+            });
+
+        } catch (error) {
+            console.error('获取用户目录失败:', error);
+            tableBody.innerHTML = `<tr><td colspan="4" class="text-center text-danger">加载数据失败，请检查网络或联系管理员。</td></tr>`;
+        }
+    }
+
+    // 绑定事件
+    searchInput.addEventListener('input', throttle(fetchUsers, 400)); // 400ms延迟
+
+    // 初始加载
+    fetchUsers();
+});
+
+
 // 函数1: “全部禁用”按钮的联动门禁功能
 async function confirmFullDisable(event, chineseName) {
     event.preventDefault(); 

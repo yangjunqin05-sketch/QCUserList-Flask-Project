@@ -1,4 +1,6 @@
-<!-- app/templates/admin_pending_requests.html (最终按钮修复版) -->
+
+
+<!-- app/templates/admin_pending_requests.html (最终编号显示修复版) -->
 
 {% extends "base.html" %}
 
@@ -30,9 +32,8 @@
                             <td>{{ req.requested_by.chinese_name }}</td>
                             <td>{{ req.request_date.strftime('%Y-%m-%d %H:%M') }}</td>
                             <td>
+                                <!-- 核心修正 1: 这里只显示用户信息 -->
                                 <ul class="list-unstyled mb-0 small">
-                                    {% set system = all_systems.get(req.target_systems|int) %}
-                                    {% if system %}{{ system.system_number }} - {% endif %}{{ system.name if system else '未知系统' }}
                                     <li><strong>用户名:</strong> {{ req.username }}</li>
                                     <li><strong>中文名:</strong> {{ req.chinese_name }}</li>
                                     {% if req.computer_role %}<li><strong>电脑角色:</strong> {{ req.computer_role }}</li>{% endif %}
@@ -40,11 +41,15 @@
                                 </ul>
                             </td>
                             <td>
+                                <!-- 核心修正 2: 这里显示完整的 "编号 - 名称" -->
                                 {% set system = all_systems.get(req.target_systems|int) %}
-                                {{ system.name if system else '未知系统' }}
+                                {% if system %}
+                                    {{ system.system_number }} - {{ system.name }}
+                                {% else %}
+                                    未知系统
+                                {% endif %}
                             </td>
                             <td>
-                                <!-- 核心修正：使用正确的 approve_add_request 和 cancel_add_request 路由 -->
                                 <form action="{{ url_for('routes.approve_add_request', request_id=req.id) }}" method="POST" class="d-inline">
                                     <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('确认批准此新增申请吗？')">批准</button>
                                 </form>
@@ -88,16 +93,24 @@
                             <td>{{ req.request_date.strftime('%Y-%m-%d') }}</td>
                             <td>{{ req.account_to_disable.chinese_name }} ({{ req.account_to_disable.username }})</td>
                             <td>
+                                {# --- 核心修正 3: 构建包含编号的 systems_map --- #}
                                 {% set systems_map = {} %}
-                                {% for su in req.account_to_disable.system_access.filter_by(is_active=True) %}{% if su.system.name not in systems_map %}{% set _ = systems_map.update({su.system.name: {'computer': [], 'workstation': []}}) %}{% endif %}{% set _ = systems_map[su.system.name]['computer'].append(su.system_role) %}{% endfor %}
-                                {% for wu in req.account_to_disable.workstation_access.filter_by(is_active=True) %}{% if wu.system.name not in systems_map %}{% set _ = systems_map.update({wu.system.name: {'computer': [], 'workstation': []}}) %}{% endif %}{% set _ = systems_map[wu.system.name]['workstation'].append(wu.role.name) %}{% endfor %}
+                                {% for su in req.account_to_disable.system_access.filter_by(is_active=True) %}
+                                    {% if su.system.name not in systems_map %}{% set _ = systems_map.update({su.system.name: {'number': su.system.system_number, 'computer': [], 'workstation': []}}) %}{% endif %}
+                                    {% set _ = systems_map[su.system.name]['computer'].append(su.system_role) %}
+                                {% endfor %}
+                                {% for wu in req.account_to_disable.workstation_access.filter_by(is_active=True) %}
+                                    {% if wu.system.name not in systems_map %}{% set _ = systems_map.update({wu.system.name: {'number': wu.system.system_number, 'computer': [], 'workstation': []}}) %}{% endif %}
+                                    {% set _ = systems_map[wu.system.name]['workstation'].append(wu.role.name) %}
+                                {% endfor %}
                                 <ul class="list-unstyled mb-0 small">
-                                    {% for system_name, roles in systems_map.items() %}
+                                    {# --- 核心修正 4: 渲染时使用 data.number --- #}
+                                    {% for system_name, data in systems_map.items() %}
                                     <li>
-                                        <strong>{{ system_name }}:</strong>
-                                        {% if roles.computer %}电脑用户 ({{ roles.computer | join(', ') }}){% endif %}
-                                        {% if roles.computer and roles.workstation %}; {% endif %}
-                                        {% if roles.workstation %}工作站用户 ({{ roles.workstation | join(', ') }}){% endif %}
+                                        <strong>{{ data.number }} - {{ system_name }}:</strong>
+                                        {% if data.computer %}电脑用户 ({{ data.computer | join(', ') }}){% endif %}
+                                        {% if data.computer and data.workstation %}; {% endif %}
+                                        {% if data.workstation %}工作站用户 ({{ data.workstation | join(', ') }}){% endif %}
                                     </li>
                                     {% else %}
                                     <li class="text-muted">（无有效活动权限）</li>
@@ -108,7 +121,6 @@
                                <form action="{{ url_for('routes.approve_disable_request', request_id=req.id) }}" method="POST" class="d-inline">
                                     <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('确认批准此禁用申请吗？将禁用该用户在所有系统中的权限。')">批准禁用</button>
                                </form>
-                               <!-- 核心修正：添加撤销按钮 -->
                                <form action="{{ url_for('routes.cancel_disable_request', request_id=req.id) }}" method="POST" class="d-inline ms-1">
                                     <button type="submit" class="btn btn-sm btn-secondary" onclick="return confirm('确定要撤销此禁用申请吗？')">撤销</button>
                                </form>
@@ -209,10 +221,10 @@
                             <td>
                                 <ul class="list-unstyled mb-0 small">
                                     {% for link in req.get_system_links() %}
-                            <li><span class="badge bg-info text-dark me-1">电脑</span><strong>{{ link.system_number }} - {{ link.system }}:</strong> {{ link.role }}</li>
-                                    {% endfor %}
-                                    {% for link in req.get_workstation_links() %}
-                             <li><span class="badge bg-primary me-1">工作站</span><strong>{{ link.system_number }} - {{ link.system }}:</strong> {{ link.role }}</li>
+                                    <li><span class="badge bg-info text-dark me-1">电脑</span><strong>{{ link.system_number }} - {{ link.system }}:</strong> {{ link.role }}</li>
+                                {% endfor %}
+                                {% for link in req.get_workstation_links() %}
+                                     <li><span class="badge bg-primary me-1">工作站</span><strong>{{ link.system_number }} - {{ link.system }}:</strong> {{ link.role }}</li>
                                 {% endfor %}
                                 </ul>
                             </td>
@@ -278,6 +290,6 @@
             {% endif %}
         </div>
     </div>
-
+    
 </div>
 {% endblock %}

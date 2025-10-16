@@ -298,7 +298,46 @@ def user_directory():
     return render_template('user_directory.html', title='全系统用户目录', 
                            accounts_by_person=accounts_by_person, # 传递分组后的字典
                            search_term=search_term)
+@bp.route('/api/system_accounts')
+@login_required
+@roles_required('admin', 'qc')
+def api_get_system_accounts():
+    search_term = request.args.get('search', '').strip()
+    
+    query = SystemAccount.query
+    if search_term:
+        query = query.filter(or_(SystemAccount.username.ilike(f'%{search_term}%'), SystemAccount.chinese_name.ilike(f'%{search_term}%')))
+    
+    accounts = query.order_by(SystemAccount.chinese_name, SystemAccount.username).all()
 
+    # 将数据处理成前端需要的 JSON 格式
+    results = []
+    # 按中文名分组
+    accounts_by_person = defaultdict(list)
+    for acc in accounts:
+        if acc.system_access.filter_by(is_active=True).first() or acc.workstation_access.filter_by(is_active=True).first():
+            accounts_by_person[acc.chinese_name].append(acc)
+
+    # 构造成 JSON
+    for chinese_name, acc_list in accounts_by_person.items():
+        person_data = {
+            'chinese_name': chinese_name,
+            'accounts': []
+        }
+        for acc in acc_list:
+            systems_map = defaultdict(lambda: {'computer': [], 'workstation': []})
+            for su in acc.system_access.filter_by(is_active=True):
+                systems_map[f"{su.system.system_number} - {su.system.name}"]['computer'].append(su.system_role)
+            for wu in acc.workstation_access.filter_by(is_active=True):
+                 systems_map[f"{wu.system.system_number} - {wu.system.name}"]['workstation'].append(wu.role.name)
+
+            person_data['accounts'].append({
+                'username': acc.username,
+                'systems': dict(systems_map)
+            })
+        results.append(person_data)
+        
+    return jsonify(results)
 # --- 认证路由 ---
 
 @bp.route('/login', methods=['GET', 'POST'])
@@ -529,11 +568,11 @@ def request_partial_disable(chinese_name):
     comp_links_info = []
     if comp_link_ids:
         links = SystemUser.query.filter(SystemUser.id.in_(comp_link_ids)).all()
-        for link in links: comp_links_info.append({"id": link.id, "system": link.system.name, "role": link.system_role})
+        for link in links: comp_links_info.append({"id": link.id, "system": link.system.name,"system_number": link.system.system_number, "role": link.system_role})
     ws_links_info = []
     if ws_link_ids:
         links = WorkstationUser.query.filter(WorkstationUser.id.in_(ws_link_ids)).all()
-        for link in links: ws_links_info.append({"id": link.id, "system": link.system.name, "role": link.role.name})
+        for link in links: ws_links_info.append({"id": link.id, "system": link.system.name, "system_number": link.system.system_number,"role": link.role.name})
     new_req = PartialDisableRequest(
         requested_by_id=current_user.id,
         chinese_name=chinese_name,

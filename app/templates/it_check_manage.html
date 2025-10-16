@@ -21,7 +21,7 @@
                 <div class="row g-3 align-items-end">
                     <div class="col-md-4">
                         <label for="group_filter" class="form-label">按系统分组筛选</label>
-                        <select name="group" id="group_filter" class="form-select">
+                        <select name="group" id="group_filter" class="form-select" onchange="this.form.submit()">
                             <option value="0" {% if current_group_id == 0 %}selected{% endif %}>所有分组</option>
                             {% for group in all_groups %}
                             <option value="{{ group.id }}" {% if current_group_id == group.id %}selected{% endif %}>{{ group.name }}</option>

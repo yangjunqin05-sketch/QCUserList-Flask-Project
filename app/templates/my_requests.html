@@ -52,44 +52,27 @@
             {% if disable_requests %}
             <div class="table-responsive">
                 <table class="table table-sm table-hover align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th>申请日期</th>
-                            <th>申请禁用的用户</th>
-                            <th>目标权限</th> {# <-- 新增表头 #}
-                            <th>状态</th>
-                            <th>操作</th>
-                        </tr>
-                    </thead>
+                    <thead><tr><th>申请日期</th><th>申请禁用的用户</th><th>目标权限</th><th>状态</th><th>操作</th></tr></thead>
                     <tbody>
                         {% for req in disable_requests %}
                         <tr>
                             <td>{{ req.request_date.strftime('%Y-%m-%d') }}</td>
                             <td>{{ req.account_to_disable.chinese_name }} ({{ req.account_to_disable.username }})</td>
                             <td>
-                                {# --- 核心修正：添加权限显示逻辑 --- #}
+                                <!-- 权限显示逻辑 -->
                                 {% set systems_map = {} %}
-                                {% for su in req.account_to_disable.system_access.filter_by(is_active=True) %}
-                                    {% if su.system.name not in systems_map %}{% set _ = systems_map.update({su.system.name: {'computer': [], 'workstation': []}}) %}{% endif %}
-                                    {% set _ = systems_map[su.system.name]['computer'].append(su.system_role) %}
-                                {% endfor %}
-                                {% for wu in req.account_to_disable.workstation_access.filter_by(is_active=True) %}
-                                    {% if wu.system.name not in systems_map %}{% set _ = systems_map.update({wu.system.name: {'computer': [], 'workstation': []}}) %}{% endif %}
-                                     {% set _ = systems_map[wu.system.name]['workstation'].append(wu.role.name) %}
-                                {% endfor %}
+                                {% for su in req.account_to_disable.system_access.filter_by(is_active=True) %}{% if su.system.name not in systems_map %}{% set _ = systems_map.update({su.system.name: {'number': su.system.system_number, 'computer': [], 'workstation': []}}) %}{% endif %}{% set _ = systems_map[su.system.name]['computer'].append(su.system_role) %}{% endfor %}
+                                {% for wu in req.account_to_disable.workstation_access.filter_by(is_active=True) %}{% if wu.system.name not in systems_map %}{% set _ = systems_map.update({wu.system.name: {'number': wu.system.system_number, 'computer': [], 'workstation': []}}) %}{% endif %}{% set _ = systems_map[wu.system.name]['workstation'].append(wu.role.name) %}{% endfor %}
                                 <ul class="list-unstyled mb-0 small">
-                                    {% for system_name, roles in systems_map.items() %}
+                                    {% for system_name, data in systems_map.items() %}
                                     <li>
-                                        <strong>{{ system_name }}:</strong>
-                                        {% if roles.computer %}电脑用户 ({{ roles.computer | join(', ') }}){% endif %}
-                                        {% if roles.computer and roles.workstation %}; {% endif %}
-                                        {% if roles.workstation %}工作站用户 ({{ roles.workstation | join(', ') }}){% endif %}
+                                        <strong>{{ data.number }} - {{ system_name }}:</strong>
+                                        {% if data.computer %}电脑用户 ({{ data.computer | join(', ') }}){% endif %}
+                                        {% if data.computer and data.workstation %}; {% endif %}
+                                        {% if data.workstation %}工作站用户 ({{ data.workstation | join(', ') }}){% endif %}
                                     </li>
-                                    {% else %}
-                                    <li class="text-muted">（无有效活动权限）</li>
-                                    {% endfor %}
+                                    {% else %}<li class="text-muted">（无有效活动权限）</li>{% endfor %}
                                 </ul>
-                                {# --- 结束权限显示逻辑 --- #}
                             </td>
                             <td>
                                {% if req.status == 'pending' %}<span class="badge bg-warning text-dark">待处理</span>
@@ -125,19 +108,18 @@
                         <td>{{ req.request_date.strftime('%Y-%m-%d %H:%M') }}</td>
                         <td>{{ req.chinese_name }}</td>
                         <td>
+                            <!-- 这里的模板代码已经是正确的，它会使用后端传来的 system_number -->
                             <ul class="list-unstyled mb-0 small">
                                 {% for link in req.get_system_links() %}
-                                    <li><span class="badge bg-info text-dark me-1">电脑</span><strong>{{ link.system }}:</strong> {{ link.role }}</li>
+                                    <li><span class="badge bg-info text-dark me-1">电脑</span><strong>{{ link.system_number }} - {{ link.system }}:</strong> {{ link.role }}</li>
                                 {% endfor %}
                                 {% for link in req.get_workstation_links() %}
-                                     <li><span class="badge bg-primary me-1">工作站</span><strong>{{ link.system }}:</strong> {{ link.role }}</li>
+                                     <li><span class="badge bg-primary me-1">工作站</span><strong>{{ link.system_number }} - {{ link.system }}:</strong> {{ link.role }}</li>
                                 {% endfor %}
                             </ul>
                         </td>
                         <td>
-                           {% if req.status == 'pending' %}<span class="badge bg-warning text-dark">待处理</span>
-                           {% elif req.status == 'completed' %}<span class="badge bg-success">已完成</span>
-                           {% else %}<span class="badge bg-secondary">{{ req.status }}</span>{% endif %}
+                           {% if req.status == 'pending' %}<span class="badge bg-warning text-dark">待处理</span>{% else %}<span class="badge bg-success">已完成</span>{% endif %}
                         </td>
                         <td>
                             {% if req.status == 'pending' %}
@@ -166,12 +148,11 @@
                     <tr>
                         <td>{{ req.request_date.strftime('%Y-%m-%d %H:%M') }}</td>
                         <td>{{ req.account.chinese_name }} ({{ req.account.username }})</td>
-                        <td>{{ req.system.name }}</td>
+                        <!-- 核心修正：在这里添加 req.system.system_number -->
+                        <td>{{ req.system.system_number }} - {{ req.system.name }}</td>
                         <td><span class="text-muted">{{ req.current_role }}</span> &rarr; <strong>{{ req.new_role }}</strong></td>
                         <td>
-                           {% if req.status == 'pending' %}<span class="badge bg-warning text-dark">待处理</span>
-                           {% elif req.status == 'completed' %}<span class="badge bg-success">已完成</span>
-                           {% else %}<span class="badge bg-secondary">{{ req.status }}</span>{% endif %}
+                           {% if req.status == 'pending' %}<span class="badge bg-warning text-dark">待处理</span>{% else %}<span class="badge bg-success">已完成</span>{% endif %}
                         </td>
                         <td>
                             {% if req.status == 'pending' %}
