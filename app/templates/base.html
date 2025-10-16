@@ -31,20 +31,28 @@
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                     {% if current_user.is_authenticated %}
                         
-                        {# --- 核心修正：管理员 和 QC组 都能看到并进入 IT核查管理 --- #}
-                        {% if current_user.role in ['admin', 'qc'] %}
+                        {# --- 核心修正：为不同角色显示不同的 IT 核查链接 --- #}
+                        {# 管理员看到的是“IT核查管理”，并链接到管理页面 #}
+                        {% if current_user.role == 'admin' %}
                             <li class="nav-item"><a class="nav-link {% if request.endpoint == 'routes.it_check_manage' %}active{% endif %}" href="{{ url_for('routes.it_check_manage') }}">IT核查管理</a></li>
+                        {# QC组看到的是“IT核查清单”，并链接到只读的首页 #}
+                        {% elif current_user.role == 'qc' %}
+                            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'routes.index' %}active{% endif %}" href="{{ url_for('routes.index') }}">IT核查清单</a></li>
+                        {% endif %}
+
+                        {# --- 管理员 和 QC组 都能看到的其他菜单 --- #}
+                        {% if current_user.role in ['admin', 'qc'] %}
                             <li class="nav-item"><a class="nav-link {% if request.endpoint == 'routes.backup_dashboard' %}active{% endif %}" href="{{ url_for('routes.backup_dashboard') }}">备份清单</a></li>
                             <li class="nav-item"><a class="nav-link {% if request.endpoint == 'routes.restore_dashboard' %}active{% endif %}" href="{{ url_for('routes.restore_dashboard') }}">还原验证</a></li>
                             <li class="nav-item"><a class="nav-link {% if request.endpoint == 'routes.user_directory' %}active{% endif %}" href="{{ url_for('routes.user_directory') }}">用户目录</a></li>
                         {% endif %}
 
-                        {# --- 管理员, QC组, QA组 都能看到的菜单 --- #}
+                        {# --- 管理员, QC组, QA组 都能看到的QA核查菜单 --- #}
                         {% if current_user.role in ['admin', 'qc', 'qa'] %}
                              <li class="nav-item"><a class="nav-link {% if request.endpoint == 'routes.qa_dashboard' %}active{% endif %}" href="{{ url_for('routes.qa_dashboard') }}">QA 核查</a></li>
                         {% endif %}
 
-                        {# --- 所有登录用户都能看到的菜单 --- #}
+                        {# --- 所有登录用户都能看到的门禁菜单 --- #}
                         <li class="nav-item"><a class="nav-link {% if request.blueprint == 'menjin' %}active{% endif %}" href="{{ url_for('menjin.index_page') }}">门禁管理</a></li>
                         
                         {# --- 管理员 和 QC组 都能看到的申请菜单 --- #}
@@ -59,7 +67,6 @@
                                     <li><a class="dropdown-item" href="{{ url_for('routes.my_requests') }}">我的申请记录</a></li>
                                 </ul>
                             </li>
-            
                         {% endif %}
                         {% if current_user.role == 'admin' %}
                             <li class="nav-item dropdown">
