@@ -351,11 +351,6 @@ def new_user_request():
         for s in all_systems_list
     ]
     
-    # b. 用于角色智能推荐 <datalist> 的数据 (之前遗漏的部分)
-    # 这一部分现在从JavaScript移到了后端，因为datalist的填充需要后端数据
-    # 如果你的JS有更复杂的逻辑，这部分也可以通过新的API实现
-    
-    # c. 填充目标系统下拉框的 choices
     form.target_system.choices = [(0, '-- 请选择一个系统 --')] + [(s['id'], s['name']) for s in systems_with_groups]
 
     # --- 步骤 2: 处理表单提交 ---
@@ -399,11 +394,13 @@ def my_requests():
     # 使用正确的模型
     disable_reqs = DisableRequest.query.filter_by(requested_by_id=current_user.id).order_by(DisableRequest.request_date.desc()).all()
     role_change_reqs = RoleChangeRequest.query.filter_by(requested_by_id=current_user.id).order_by(RoleChangeRequest.request_date.desc()).all()
+    partial_disable_reqs = PartialDisableRequest.query.filter_by(requested_by_id=current_user.id).order_by(PartialDisableRequest.request_date.desc()).all()
     all_systems = {s.id: s for s in System.query.all()}
     return render_template('my_requests.html', title='我的申请记录',
                            add_requests=add_reqs,
                            disable_requests=disable_reqs, # 使用正确的变量名
                            role_change_requests=role_change_reqs,
+                           partial_disable_requests=partial_disable_reqs,
                            all_systems=all_systems)
 
 
@@ -415,7 +412,8 @@ def cancel_my_request(req_type, request_id):
     model_map = {
         'add': UserRequest,
         'disable': DisableRequest,
-        'role_change': RoleChangeRequest
+        'role_change': RoleChangeRequest,
+        'partial_disable': PartialDisableRequest
     }
     Model = model_map.get(req_type)
     if not Model:
@@ -441,7 +439,9 @@ def cancel_my_request(req_type, request_id):
 @roles_required('admin', 'qc')
 def new_role_change_request():
     form = RoleChangeRequestForm()
-    form.system.choices = [(0, '-- 请先选择一个系统 --')] + [(s.id, s.name) for s in System.query.order_by(System.name).all()]
+    form.system.choices = [(0, '-- 请先选择一个系统 --')] + [
+        (s.id, f"{s.system_number} - {s.name}") for s in System.query.order_by(System.name).all()
+    ]
     if request.method == 'POST':
         system_id = form.system.data
         if system_id:

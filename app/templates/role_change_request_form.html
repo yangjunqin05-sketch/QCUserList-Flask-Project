@@ -10,16 +10,16 @@
             <div class="card-body">
                 <form id="main-form" action="" method="post" novalidate>
                     {{ form.hidden_tag() }}
-                    
                     <fieldset class="mb-4">
                         <legend class="h5">{{ form.system.label }}</legend>
                         {{ form.system(class="form-select") }}
                     </fieldset>
 
                     <!-- 电脑用户修改区域 -->
-                    <fieldset class="mb-3 p-3 border rounded" id="computer-user-section" style="display: none;">
-                        <legend class="h6">{{ form.computer_user_link.label }}</legend>
+                    <fieldset class="mb-3 p-3 border rounded bg-light" id="computer-user-section" style="display: none;">
+                        <legend class="h6 text-info fw-bold"><i class="bi bi-display me-2"></i>电脑用户角色</legend>
                         <div class="mb-3">
+                            {{ form.computer_user_link.label(class="form-label") }}
                             {{ form.computer_user_link(class="form-select") }}
                         </div>
                         <div class="mb-3">
@@ -29,9 +29,10 @@
                     </fieldset>
 
                     <!-- 工作站用户修改区域 -->
-                    <fieldset class="p-3 border rounded" id="workstation-user-section" style="display: none;">
-                        <legend class="h6">{{ form.workstation_user_link.label }}</legend>
+                    <fieldset class="p-3 border rounded bg-light" id="workstation-user-section" style="display: none;">
+                        <legend class="h6 text-primary fw-bold"><i class="bi bi-pc-display me-2"></i>工作站用户角色</legend>
                          <div class="mb-3">
+                            {{ form.workstation_user_link.label(class="form-label") }}
                             {{ form.workstation_user_link(class="form-select") }}
                         </div>
                         <div class="mb-3">
@@ -41,7 +42,7 @@
                     </fieldset>
 
                     <div class="mt-4">
-                        {{ form.submit(class="btn btn-primary btn-lg") }}
+                        {{ form.submit(class="btn btn-primary btn-lg", value="提交申请") }}
                     </div>
                 </form>
             </div>

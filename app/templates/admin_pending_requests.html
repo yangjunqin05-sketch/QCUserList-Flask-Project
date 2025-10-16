@@ -31,6 +31,8 @@
                             <td>{{ req.request_date.strftime('%Y-%m-%d %H:%M') }}</td>
                             <td>
                                 <ul class="list-unstyled mb-0 small">
+                                    {% set system = all_systems.get(req.target_systems|int) %}
+                                    {% if system %}{{ system.system_number }} - {% endif %}{{ system.name if system else '未知系统' }}
                                     <li><strong>用户名:</strong> {{ req.username }}</li>
                                     <li><strong>中文名:</strong> {{ req.chinese_name }}</li>
                                     {% if req.computer_role %}<li><strong>电脑角色:</strong> {{ req.computer_role }}</li>{% endif %}
@@ -149,7 +151,7 @@
                                 {{ req.requested_by.chinese_name }}
                                 <small class="d-block text-muted">{{ req.request_date.strftime('%Y-%m-%d %H:%M') }}</small>
                             </td>
-                            <td>{{ req.system.name }}</td>
+                            <td>{{ req.system.system_number }} - {{ req.system.name }}</td>
                             <td>{{ req.account.chinese_name }} ({{ req.account.username }})</td>
                             <td>
                                 {% if req.user_type == 'computer' %}
@@ -207,11 +209,11 @@
                             <td>
                                 <ul class="list-unstyled mb-0 small">
                                     {% for link in req.get_system_links() %}
-                                        <li><span class="badge bg-info text-dark me-1">电脑</span><strong>{{ link.system }}:</strong> {{ link.role }}</li>
+                            <li><span class="badge bg-info text-dark me-1">电脑</span><strong>{{ link.system_number }} - {{ link.system }}:</strong> {{ link.role }}</li>
                                     {% endfor %}
                                     {% for link in req.get_workstation_links() %}
-                                         <li><span class="badge bg-primary me-1">工作站</span><strong>{{ link.system }}:</strong> {{ link.role }}</li>
-                                    {% endfor %}
+                             <li><span class="badge bg-primary me-1">工作站</span><strong>{{ link.system_number }} - {{ link.system }}:</strong> {{ link.role }}</li>
+                                {% endfor %}
                                 </ul>
                             </td>
                             <td>

@@ -22,7 +22,7 @@
                             <td>{{ req.chinese_name }} ({{ req.username }})</td>
                             <td>
                                 {% set system = all_systems.get(req.target_systems|int) %}
-                                {{ system.name if system else '未知系统' }}
+                                {% if system %}{{ system.system_number }} - {% endif %}{{ system.name if system else '未知系统' }}
                             </td>
                             <td>
                                {% if req.status == 'pending' %}<span class="badge bg-warning text-dark">待处理</span>
@@ -50,29 +50,64 @@
         <div class="card-header"><h4><i class="bi bi-person-dash-fill me-2"></i>我提交的禁用申请</h4></div>
         <div class="card-body">
             {% if disable_requests %}
-            <table class="table table-sm table-hover align-middle">
-                <thead><tr><th>申请日期</th><th>申请禁用的用户</th><th>状态</th><th>操作</th></tr></thead>
-                <tbody>
-                    {% for req in disable_requests %}
-                    <tr>
-                        <td>{{ req.request_date.strftime('%Y-%m-%d') }}</td>
-                        <td>{{ req.account_to_disable.chinese_name }} ({{ req.account_to_disable.username }})</td>
-                        <td>
-                           {% if req.status == 'pending' %}<span class="badge bg-warning text-dark">待处理</span>
-                           {% elif req.status == 'completed' %}<span class="badge bg-success">已完成</span>
-                           {% else %}<span class="badge bg-secondary">{{ req.status }}</span>{% endif %}
-                        </td>
-                        <td>
-                            {% if req.status == 'pending' %}
-                            <form action="{{ url_for('routes.cancel_my_request', req_type='disable', request_id=req.id) }}" method="POST">
-                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('确定要撤销此申请吗？')">撤销</button>
-                            </form>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>申请日期</th>
+                            <th>申请禁用的用户</th>
+                            <th>目标权限</th> {# <-- 新增表头 #}
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for req in disable_requests %}
+                        <tr>
+                            <td>{{ req.request_date.strftime('%Y-%m-%d') }}</td>
+                            <td>{{ req.account_to_disable.chinese_name }} ({{ req.account_to_disable.username }})</td>
+                            <td>
+                                {# --- 核心修正：添加权限显示逻辑 --- #}
+                                {% set systems_map = {} %}
+                                {% for su in req.account_to_disable.system_access.filter_by(is_active=True) %}
+                                    {% if su.system.name not in systems_map %}{% set _ = systems_map.update({su.system.name: {'computer': [], 'workstation': []}}) %}{% endif %}
+                                    {% set _ = systems_map[su.system.name]['computer'].append(su.system_role) %}
+                                {% endfor %}
+                                {% for wu in req.account_to_disable.workstation_access.filter_by(is_active=True) %}
+                                    {% if wu.system.name not in systems_map %}{% set _ = systems_map.update({wu.system.name: {'computer': [], 'workstation': []}}) %}{% endif %}
+                                     {% set _ = systems_map[wu.system.name]['workstation'].append(wu.role.name) %}
+                                {% endfor %}
+                                <ul class="list-unstyled mb-0 small">
+                                    {% for system_name, roles in systems_map.items() %}
+                                    <li>
+                                        <strong>{{ system_name }}:</strong>
+                                        {% if roles.computer %}电脑用户 ({{ roles.computer | join(', ') }}){% endif %}
+                                        {% if roles.computer and roles.workstation %}; {% endif %}
+                                        {% if roles.workstation %}工作站用户 ({{ roles.workstation | join(', ') }}){% endif %}
+                                    </li>
+                                    {% else %}
+                                    <li class="text-muted">（无有效活动权限）</li>
+                                    {% endfor %}
+                                </ul>
+                                {# --- 结束权限显示逻辑 --- #}
+                            </td>
+                            <td>
+                               {% if req.status == 'pending' %}<span class="badge bg-warning text-dark">待处理</span>
+                               {% elif req.status == 'completed' %}<span class="badge bg-success">已完成</span>
+                               {% else %}<span class="badge bg-secondary">{{ req.status }}</span>{% endif %}
+                            </td>
+                            <td>
+                                {% if req.status == 'pending' %}
+                                <form action="{{ url_for('routes.cancel_my_request', req_type='disable', request_id=req.id) }}" method="POST">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('确定要撤销此申请吗？')">撤销</button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
             {% else %}<p class="text-muted">您没有提交过用户禁用申请。</p>{% endif %}
         </div>
     </div>
