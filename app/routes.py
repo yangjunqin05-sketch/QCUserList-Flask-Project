@@ -65,7 +65,7 @@ def index():
 
 @bp.route('/it_check_manage')
 @login_required
-@roles_required('admin', 'qc')
+@roles_required('admin')
 def it_check_manage():
     # --- 确保所有需要的变量都已定义 ---
     group_filter_id = request.args.get('group', 0, type=int)
@@ -327,25 +327,27 @@ def logout():
 def new_user_request():
     form = UserRequestForm()
     
-    # --- 查询所有需要的数据 ---
+    # --- 步骤 1: 无论GET还是POST，都先准备好所有需要传递给模板的数据 ---
+    
+    # a. 用于系统筛选下拉框的数据
     all_groups = Group.query.order_by(Group.id).all()
     all_systems_list = System.query.order_by(System.name).all()
-    
-    # 1. 为“角色智能推荐”准备数据
-    all_computer_roles = [r[0] for r in db.session.query(SystemUser.system_role).distinct().all() if r[0]]
-    all_workstation_roles = [role.name for role in SystemRole.query.order_by(SystemRole.name).all()]
-
-    # 2. 为“系统分组筛选”准备数据
     systems_with_groups = [
         {'id': s.id, 'name': f"{s.system_number} - {s.name}", 'group': s.group.name if s.group else 'none'} 
         for s in all_systems_list
     ]
-    form.target_system.choices = [(0, '-- 请选择一个系统 --')] + [(s['id'], s['name']) for s in systems_with_groups]
     
+    # b. 用于角色智能推荐 <datalist> 的数据 (之前遗漏的部分)
+    # 这一部分现在从JavaScript移到了后端，因为datalist的填充需要后端数据
+    # 如果你的JS有更复杂的逻辑，这部分也可以通过新的API实现
+    
+    # c. 填充目标系统下拉框的 choices
+    form.target_system.choices = [(0, '-- 请选择一个系统 --')] + [(s['id'], s['name']) for s in systems_with_groups]
+
+    # --- 步骤 2: 处理表单提交 ---
     if form.validate_on_submit():
         username = form.username.data.strip()
         system_id = form.target_system.data
-
         existing_pending_request = UserRequest.query.filter_by(
             username=username,
             target_systems=str(system_id),
@@ -353,7 +355,7 @@ def new_user_request():
         ).first()
 
         if existing_pending_request:
-            flash(f'提交失败：一个针对用户 “{username}” 和该系统的待处理申请已存在（由 {existing_pending_request.requested_by.chinese_name} 提交），请等待管理员处理。', 'warning')
+            flash(f'提交失败：一个针对用户 “{username}” 和该系统的待处理申请已存在...', 'warning')
         else:
             new_req = UserRequest(
                 requested_by_id=current_user.id,
@@ -367,13 +369,13 @@ def new_user_request():
             db.session.commit()
             flash(f'用户 “{username}” 的新增申请已成功提交！', 'success')
             return redirect(url_for('routes.new_user_request'))
-
-    # --- 确保所有需要的变量都被传递给模板 ---
-    return render_template('user_request_form.html', title='系统用户新增申请', form=form, 
+            
+    # --- 步骤 3: 渲染模板，并确保传递所有需要的数据 ---
+    return render_template('user_request_form.html', 
+                           title='系统用户新增申请', 
+                           form=form, 
                            all_groups=all_groups, 
-                           systems_with_groups=systems_with_groups,
-                           all_computer_roles=all_computer_roles,
-                           all_workstation_roles=all_workstation_roles)
+                           systems_with_groups=systems_with_groups)
 
 @bp.route('/my_requests')
 @login_required
@@ -1053,7 +1055,7 @@ def delete_system(system_id):
         return redirect(url_for('routes.index'))
     if Job.query.filter_by(system_id=system.id).first():
         flash(f'无法删除系统 "{system.name}"，因为它存在关联的任务执行记录。', 'danger')
-        return redirect(url_for('routes.it_check_manage'))
+        return redirect(url_for('routes.index'))
     db.session.delete(system)
     db.session.commit()
     flash(f'系统 "{system.name}" 已被成功删除。', 'success')

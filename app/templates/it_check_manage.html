@@ -72,7 +72,7 @@
                             <td>{{ system.ip_address or 'N/A' }}</td>
                             
                             {# 操作权限开放给 admin 和 qc #}
-                            {% if current_user.role in ['admin', 'qc'] %}
+                            {% if current_user.role in ['admin'] %}
                                 <form action="{{ url_for('routes.update_dates', system_id=system.id) }}" method="POST">
                                     <td><input type="date" name="last_check_date" class="form-control form-control-sm" value="{{ system.last_check_date.strftime('%Y-%m-%d') if system.last_check_date }}"></td>
                                     <td>{{ system.next_check_date.strftime('%Y-%m-%d') if system.next_check_date else 'N/A' }}</td>

@@ -7,7 +7,7 @@ from wtforms import (StringField, PasswordField, BooleanField, SubmitField,
 from wtforms.validators import DataRequired, NumberRange, Optional, IPAddress, ValidationError, Length, EqualTo
 from app.models import System, Group, User,SystemAccount
 from wtforms.validators import DataRequired, NumberRange, Optional, IPAddress, ValidationError, Length, EqualTo
-import re
+
 # --- 辅助类 ---
 
 class MultiCheckboxField(SelectMultipleField):
@@ -121,17 +121,15 @@ class UserRequestForm(FlaskForm):
     submit = SubmitField('提交申请')
     def validate_username(self, username):
         """
-        自定义验证器，确保用户名只包含字母和数字。
+        自定义验证器，确保用户名只包含ASCII字符（字母、数字、符号），从而排除中文。
         """
-        # 正则表达式：^ 和 $ 表示字符串的开始和结束
-        # [a-zA-Z0-9]+ 表示一个或多个大小写字母或数字
-        if not re.match('^[a-zA-Z0-9]+$', username.data):
-            # 如果不匹配，则引发一个验证错误，这个错误消息会显示在前端
-            raise ValidationError('用户名只能包含英文字母和数字。')
-    # 验证器现在可以保持简单，因为审批端会处理最终逻辑
-    def validate_username(self, username):
-        if username.data != username.data.strip():
-            raise ValidationError('用户名前后不能有空格。')
+        # 检查整个字符串是否都是ASCII字符
+        if not username.data.isascii():
+            raise ValidationError('用户名只能包含英文字母、数字或标准符号，不能包含中文。')
+        
+        # 检查是否包含空格
+        if ' ' in username.data:
+            raise ValidationError('用户名不能包含空格。')
 
 class AdminUserForm(FlaskForm):
     username = StringField('用户名', validators=[DataRequired(), Length(min=2, max=64)])

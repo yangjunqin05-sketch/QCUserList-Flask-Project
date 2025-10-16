@@ -20,7 +20,7 @@
                             <th>QA核查周期</th>
                             <th><a href="{{ url_for('routes.qa_dashboard', group=current_group_id, sort_by='qa_next_check_date') }}" class="text-decoration-none">下次QA核查 <i class="bi bi-arrow-down-up small"></i></a></th>
                             <th>状态</th>
-                            {% if current_user.role == 'admin' %}
+                            {% if current_user.role == 'admin','qa'%}
                             <th>操作</th>
                             <th>是否核查</th>
                             {% endif %}
@@ -34,7 +34,7 @@
                             <td><a href="{{ url_for('routes.system_detail', system_id=system.id) }}">{{ system.name }}</a></td>
                             <td><span class="badge bg-secondary">{{ system.group.name if system.group else '未分组' }}</span></td>
                             
-                            {% if current_user.role == 'admin' %}
+                            {% if current_user.role == 'admin' ,'qa'%}
                             <form action="{{ url_for('routes.update_qa_dates', system_id=system.id) }}" method="POST">
                                 <td><input type="date" name="qa_last_check_date" class="form-control form-control-sm" value="{{ system.qa_last_check_date.strftime('%Y-%m-%d') if system.qa_last_check_date }}" {{ 'disabled' if not system.needs_qa_check }}></td>
                                 <td>

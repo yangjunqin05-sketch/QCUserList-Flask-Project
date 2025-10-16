@@ -1,4 +1,4 @@
-<!-- app/templates/base.html (最终权限与首页整合版) -->
+<!-- app/templates/base.html (添加禁用申请菜单项版) -->
 
 <!doctype html>
 <html lang="zh-CN">
@@ -7,7 +7,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ title }} - 计算机化系统管理平台</title>
     
-    <!-- CSS 链接 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
@@ -24,20 +23,17 @@
     </style>
 </head>
 <body class="bg-light">
-    <!-- 导航栏 -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
         <div class="container-fluid">
             <a class="navbar-brand" href="{{ url_for('routes.index') }}">首页</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown">
-                <span class="navbar-toggler-icon"></span>
-            </button>
+            <button class="navbar-toggler" ...></button>
             <div class="collapse navbar-collapse" id="navbarNavDropdown">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                     {% if current_user.is_authenticated %}
                         
-                        {# --- 管理员 和 QC组 都能看到的菜单 --- #}
+                        {# --- 核心修正：管理员 和 QC组 都能看到并进入 IT核查管理 --- #}
                         {% if current_user.role in ['admin', 'qc'] %}
-                            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'routes.it_check_manage' %}active{% endif %}" href="{{ url_for('routes.it_check_manage') }}">IT核查</a></li>
+                            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'routes.it_check_manage' %}active{% endif %}" href="{{ url_for('routes.it_check_manage') }}">IT核查管理</a></li>
                             <li class="nav-item"><a class="nav-link {% if request.endpoint == 'routes.backup_dashboard' %}active{% endif %}" href="{{ url_for('routes.backup_dashboard') }}">备份清单</a></li>
                             <li class="nav-item"><a class="nav-link {% if request.endpoint == 'routes.restore_dashboard' %}active{% endif %}" href="{{ url_for('routes.restore_dashboard') }}">还原验证</a></li>
                             <li class="nav-item"><a class="nav-link {% if request.endpoint == 'routes.user_directory' %}active{% endif %}" href="{{ url_for('routes.user_directory') }}">用户目录</a></li>
@@ -54,17 +50,17 @@
                         {# --- 管理员 和 QC组 都能看到的申请菜单 --- #}
                         {% if current_user.role in ['admin', 'qc'] %}
                             <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle {% if request.endpoint in ['routes.new_user_request', 'routes.new_role_change_request', 'routes.my_requests'] %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown">申请</a>
+                                <a class="nav-link dropdown-toggle {% if request.endpoint in ['routes.new_user_request', 'routes.new_role_change_request', 'routes.my_requests'] or 'user_directory' in request.endpoint %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown">申请</a>
                                 <ul class="dropdown-menu">
                                     <li><a class="dropdown-item" href="{{ url_for('routes.new_user_request') }}">系统用户新增申请</a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('routes.user_directory') }}">系统用户禁用申请</a></li>
                                     <li><a class="dropdown-item" href="{{ url_for('routes.new_role_change_request') }}">系统用户角色修改申请</a></li>
                                     <li><hr class="dropdown-divider"></li>
                                     <li><a class="dropdown-item" href="{{ url_for('routes.my_requests') }}">我的申请记录</a></li>
                                 </ul>
                             </li>
+            
                         {% endif %}
-
-                        {# --- 只有 管理员 才能看到的管理菜单 --- #}
                         {% if current_user.role == 'admin' %}
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle position-relative {% if request.endpoint in ['routes.pending_requests', 'routes.manage_users', 'routes.manage_groups', 'routes.manage_scripts', 'routes.execute_dashboard'] %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown">
@@ -74,12 +70,7 @@
                                     {% endif %}
                                 </a>
                                 <ul class="dropdown-menu">
-                                    <li>
-                                        <a class="dropdown-item d-flex justify-content-between align-items-center" href="{{ url_for('routes.pending_requests') }}">
-                                            待执行申请
-                                            {% if pending_requests_count %}<span class="badge rounded-pill bg-danger">{{ pending_requests_count }}</span>{% endif %}
-                                        </a>
-                                    </li>
+                                    <li><a class="dropdown-item d-flex justify-content-between align-items-center" href="{{ url_for('routes.pending_requests') }}">待执行申请 {% if pending_requests_count %}<span class="badge rounded-pill bg-danger">{{ pending_requests_count }}</span>{% endif %}</a></li>
                                     <li><a class="dropdown-item" href="{{ url_for('routes.manage_users') }}">平台用户管理</a></li>
                                     <li><a class="dropdown-item" href="{{ url_for('routes.manage_groups') }}">分组管理</a></li>
                                     <li><hr class="dropdown-divider"></li>
@@ -100,7 +91,7 @@
             </div>
         </div>
     </nav>
-
+    
     <main class="container-fluid mt-4">
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
@@ -115,7 +106,6 @@
         {% block content %}{% endblock %}
     </main>
 
-    <!-- JS 脚本 -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>

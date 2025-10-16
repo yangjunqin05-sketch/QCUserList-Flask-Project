@@ -31,7 +31,7 @@
                             <th scope="col" style="width: 15%;">中文名</th>
                             <th scope="col" style="width: 15%;">用户名</th>
                             <th scope="col" style="width: 55%;">所在系统及角色 (仅显示活动权限)</th>
-                            {% if current_user.role == 'admin' %}
+                            {% if current_user.role == 'admin', 'qc' %}
                             <th scope="col" style="width: 15%;">操作</th>
                             {% endif %}
                         </tr>
@@ -51,7 +51,7 @@
                                     {% endfor %}
                                 </ul>
                             </td>
-                            {% if current_user.role == 'admin' %}
+                            {% if current_user.role == 'admin', 'qc' %}
                             <td rowspan="{{ accounts|length }}" style="vertical-align: middle;">
                                 <form action="{{ url_for('routes.request_person_disable', chinese_name=chinese_name) }}" method="POST" 
                                       onsubmit="confirmFullDisable(event, '{{ chinese_name }}')" class="d-inline">
