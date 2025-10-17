@@ -90,7 +90,7 @@
                         {% for req in disable_requests %}
                         <tr>
                             <td>{{ req.requested_by.chinese_name }}</td>
-                            <td><span class="utc-datetime" data-timestamp="{{ req.request_date }}">--</span></td>
+                            <td>{{ req.request_date.strftime('%Y-%m-%d') }}</td>
                             <td>{{ req.account_to_disable.chinese_name }} ({{ req.account_to_disable.username }})</td>
                             <td>
                                 {# --- 核心修正 3: 构建包含编号的 systems_map --- #}
@@ -161,7 +161,7 @@
                         <tr>
                             <td>
                                 {{ req.requested_by.chinese_name }}
-                                <small class="d-block text-muted">{{ req.request_date.strftime('%Y-%m-%d %H:%M') }}</small>
+                                <small class="d-block text-muted"><span class="utc-datetime" data-timestamp="{{ req.request_date }}">--</span></small>
                             </td>
                             <td>{{ req.system.system_number }} - {{ req.system.name }}</td>
                             <td>{{ req.account.chinese_name }} ({{ req.account.username }})</td>
@@ -215,7 +215,7 @@
                         <tr>
                             <td>
                                 {{ req.requested_by.chinese_name }}
-                                <small class="d-block text-muted">{{ req.request_date.strftime('%Y-%m-%d %H:%M') }}</small>
+                                <small class="d-block text-muted"><span class="utc-datetime" data-timestamp="{{ req.request_date }}">--</span></small>
                             </td>
                             <td><strong>{{ req.chinese_name }}</strong></td>
                             <td>
@@ -310,7 +310,7 @@
             <tbody>
                 {% for req in menjin_priv_del_requests %}
                 <tr>
-                    <td>{{ req.requested_by.chinese_name }}<small class="d-block text-muted">{{ req.request_date.strftime('%Y-%m-%d %H:%M') }}</small></td>
+                    <td>{{ req.requested_by.chinese_name }}<small class="d-block text-muted"><span class="utc-datetime" data-timestamp="{{ req.request_date }}">--</span></small></td>
                     <td>{{ req.consumer_name }}</td>
                     <td><strong>{{ req.door_name }}</strong> (时段: {{ req.control_seg_name }})</td>
                     <td>

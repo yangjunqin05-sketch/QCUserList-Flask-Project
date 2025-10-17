@@ -18,7 +18,7 @@
                     <tbody>
                         {% for req in add_requests %}
                         <tr>
-                            <td>{{ req.request_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td><span class="utc-datetime" data-timestamp="{{ req.request_date }}">--</span></td>
                             <td>{{ req.chinese_name }} ({{ req.username }})</td>
                             <td>
                                 {% set system = all_systems.get(req.target_systems|int) %}
@@ -105,7 +105,7 @@
                 <tbody>
                     {% for req in partial_disable_requests %}
                     <tr>
-                        <td>{{ req.request_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td><span class="utc-datetime" data-timestamp="{{ req.request_date }}">--</span></td>
                         <td>{{ req.chinese_name }}</td>
                         <td>
                             <!-- 这里的模板代码已经是正确的，它会使用后端传来的 system_number -->
@@ -146,7 +146,7 @@
                 <tbody>
                     {% for req in role_change_requests %}
                     <tr>
-                        <td>{{ req.request_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td><span class="utc-datetime" data-timestamp="{{ req.request_date }}">--</span></td>
                         <td>{{ req.account.chinese_name }} ({{ req.account.username }})</td>
                         <!-- 核心修正：在这里添加 req.system.system_number -->
                         <td>{{ req.system.system_number }} - {{ req.system.name }}</td>
