@@ -30,9 +30,15 @@
                         <td>{{ user.chinese_name }}</td>
                         <td>
                             {% if user.role == 'admin' %}
-                            <span class="badge bg-primary">管理员</span>
+                                <span class="badge bg-primary">管理员</span>
+                            {% elif user.role == 'qc' %}
+                                <span class="badge bg-info text-dark">QC组</span>
+                            {% elif user.role == 'qa' %}
+                                <span class="badge bg-success">QA组</span>
+                            {% elif user.role == 'menjin' %}
+                                <span class="badge bg-secondary">门禁组</span>
                             {% else %}
-                            <span class="badge bg-secondary">普通用户</span>
+                                <span class="badge bg-light text-dark">{{ user.role }}</span>
                             {% endif %}
                         </td>
                         <td>

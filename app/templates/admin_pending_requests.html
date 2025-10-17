@@ -30,7 +30,7 @@
                         {% for req in add_requests %}
                         <tr>
                             <td>{{ req.requested_by.chinese_name }}</td>
-                            <td>{{ req.request_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td><span class="utc-datetime" data-timestamp="{{ req.request_date }}">--</span></td>
                             <td>
                                 <!-- 核心修正 1: 这里只显示用户信息 -->
                                 <ul class="list-unstyled mb-0 small">
@@ -90,7 +90,7 @@
                         {% for req in disable_requests %}
                         <tr>
                             <td>{{ req.requested_by.chinese_name }}</td>
-                            <td>{{ req.request_date.strftime('%Y-%m-%d') }}</td>
+                            <td><span class="utc-datetime" data-timestamp="{{ req.request_date }}">--</span></td>
                             <td>{{ req.account_to_disable.chinese_name }} ({{ req.account_to_disable.username }})</td>
                             <td>
                                 {# --- 核心修正 3: 构建包含编号的 systems_map --- #}
@@ -269,7 +269,7 @@
                         {% for req in menjin_del_requests %}
                         <tr>
                             <td>{{ req.requested_by.chinese_name }}</td>
-                            <td>{{ req.request_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td><span class="utc-datetime" data-timestamp="{{ req.request_date }}">--</span></td>
                             <td><strong>{{ req.consumer_name }}</strong></td>
                             <td><code>{{ req.consumer_no }}</code></td>
                             <td>
@@ -290,6 +290,44 @@
             {% endif %}
         </div>
     </div>
-    
+
+</div>
+<div class="card mt-4">
+    <div class="card-header">
+        <h4><i class="bi bi-key-fill me-2"></i>门禁单项权限删除申请</h4>
+    </div>
+    <div class="card-body">
+        {% if menjin_priv_del_requests %}
+        <table class="table table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>申请人 / 日期</th>
+                    <th>目标用户</th>
+                    <th>待删除权限</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for req in menjin_priv_del_requests %}
+                <tr>
+                    <td>{{ req.requested_by.chinese_name }}<small class="d-block text-muted">{{ req.request_date.strftime('%Y-%m-%d %H:%M') }}</small></td>
+                    <td>{{ req.consumer_name }}</td>
+                    <td><strong>{{ req.door_name }}</strong> (时段: {{ req.control_seg_name }})</td>
+                    <td>
+                        <form action="{{ url_for('routes.approve_menjin_privilege_del_request', request_id=req.id) }}" method="POST" class="d-inline">
+                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('确认批准删除此项门禁权限吗？')">批准删除</button>
+                        </form>
+                        <form action="{{ url_for('routes.cancel_menjin_privilege_del_request', request_id=req.id) }}" method="POST" class="d-inline ms-1">
+                                <button type="submit" class="btn btn-sm btn-secondary" onclick="return confirm('确定要撤销此申请吗？')">撤销</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted">当前没有待处理的门禁单项权限删除申请。</p>
+        {% endif %}
+    </div>
 </div>
 {% endblock %}

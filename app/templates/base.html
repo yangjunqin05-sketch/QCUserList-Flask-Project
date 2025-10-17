@@ -116,7 +116,23 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment-timezone/0.5.34/moment-timezone-with-data.min.js"></script>
+{% block scripts %}
+    <script>
+    // 全局的时间转换脚本
+    document.addEventListener("DOMContentLoaded", function() {
+        document.querySelectorAll('.utc-datetime').forEach(function(el) {
+            const utcTimestamp = el.getAttribute('data-timestamp');
+            if (utcTimestamp && utcTimestamp !== 'None') {
+                const localMoment = moment.utc(utcTimestamp).local();
+                el.textContent = localMoment.format('YYYY-MM-DD HH:mm');
+                el.title = localMoment.format('YYYY-MM-DD HH:mm:ss Z');
+            }
+        });
+    });
+    </script>
+    {% endblock %}
     
-    {% block scripts %}{% endblock %}
 </body>
 </html>

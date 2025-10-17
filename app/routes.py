@@ -4,7 +4,7 @@ from flask_login import current_user, login_user, logout_user, login_required
 from app import db
 from app.models import (User, System, SystemAccount, CheckHistory, SystemUser, WorkstationUser, 
                         SystemRole, DisableRequest, Group, Script, Job, UserRequest,RoleChangeRequest,
-                        MenjinDeletionRequest, PartialDisableRequest)
+                        MenjinDeletionRequest, PartialDisableRequest,MenjinPrivilegeDeletionRequest)
 from app.forms import (LoginForm, SearchUserForm, EditSystemForm, AssignGroupForm, 
                        AddSystemForm, GroupForm, ScriptForm, ExecuteJobForm,
                        UserRequestForm, AdminUserForm, AddComputerUserForm, 
@@ -594,8 +594,8 @@ def pending_requests():
     disable_reqs = DisableRequest.query.filter_by(status='pending').order_by(DisableRequest.request_date.desc()).all()
     role_change_reqs = RoleChangeRequest.query.filter_by(status='pending').order_by(RoleChangeRequest.request_date.desc()).all()
     menjin_del_reqs = MenjinDeletionRequest.query.filter_by(status='pending').order_by(MenjinDeletionRequest.request_date.desc()).all()
+    menjin_priv_del_reqs = MenjinPrivilegeDeletionRequest.query.filter_by(status='pending')
     partial_disable_reqs = PartialDisableRequest.query.filter_by(status='pending').order_by(PartialDisableRequest.request_date.desc()).all()
-    
     all_systems = {s.id: s for s in System.query.all()}
     return render_template('admin_pending_requests.html', title='待执行申请', 
                            add_requests=add_reqs, 
@@ -603,6 +603,7 @@ def pending_requests():
                            role_change_requests=role_change_reqs,
                            menjin_del_requests=menjin_del_reqs,
                            partial_disable_requests=partial_disable_reqs,
+                           menjin_priv_del_requests=menjin_priv_del_reqs,
                            all_systems=all_systems)
 
 @bp.route('/admin/requests/add/<int:request_id>/approve', methods=['POST'])
@@ -1369,3 +1370,61 @@ def agent_report_job_result():
         db.session.commit()
         return jsonify({'status': 'success'})
     return jsonify({'error': 'Job not found'}), 404
+@bp.route('/admin/requests/menjin_privilege_delete/<int:request_id>/approve', methods=['POST'])
+@login_required
+@roles_required('admin')
+def approve_menjin_privilege_del_request(request_id):
+    from menjin.routes import get_db_connection, print_log # 导入需要的 menjin 函数
+    req = MenjinPrivilegeDeletionRequest.query.get_or_404(request_id)
+    
+    conn = get_db_connection()
+    if not conn:
+        flash("无法连接到门禁数据库。", "danger")
+        return redirect(url_for('routes.pending_requests'))
+        
+    success = False
+    try:
+        with conn.cursor() as cursor:
+            # 直接执行 SQL 删除
+            cursor.execute("DELETE FROM t_d_Privilege WHERE f_ConsumerID=? AND f_DoorID=? AND f_ControlSegID=?", 
+                           (req.consumer_id, req.door_id, req.control_seg_id))
+        conn.commit()
+        success = True
+    except Exception as e:
+        conn.rollback()
+        print_log(f"执行门禁权限删除失败: {e}", "ERROR")
+        flash(f"执行门禁权限删除失败: {e}", "danger")
+    finally:
+        if conn: conn.close()
+
+    if success:
+        req.status = 'completed'
+        db.session.commit()
+        flash(f"已成功删除用户 “{req.consumer_name}” 对门 “{req.door_name}” 的权限。", "success")
+        
+    return redirect(url_for('routes.pending_requests'))
+@bp.route('/admin/requests/menjin_privilege_delete/<int:request_id>/cancel', methods=['POST'])
+@login_required
+@roles_required('admin')
+def cancel_menjin_privilege_del_request(request_id):
+    # 我们需要从 app.models 导入 MenjinPrivilegeDeletionRequest
+    # 请确保文件顶部有 from app.models import MenjinPrivilegeDeletionRequest
+    req = MenjinPrivilegeDeletionRequest.query.get_or_404(request_id)
+    
+    if req.status == 'pending':
+        try:
+            # 在删除前保存信息用于 flash 消息
+            user_name = req.consumer_name
+            door_name = req.door_name
+
+            db.session.delete(req)
+            db.session.commit()
+            flash(f'已成功撤销对 “{user_name}” 关于门 “{door_name}” 的权限删除申请。', 'success')
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error cancelling menjin privilege request {request_id}: {e}")
+            flash('撤销申请时发生错误，请联系管理员。', 'danger')
+    else:
+        flash('无法撤销一个已被处理的申请。', 'warning')
+        
+    return redirect(url_for('routes.pending_requests'))

@@ -1,0 +1,103 @@
+<!-- menjin/templates/my_menjin_requests.html -->
+
+{% extends "layout.html" %}
+
+{% block title %}我的门禁申请记录{% endblock %}
+
+{% block menjin_content %}
+    <h2 class="mb-4">我的门禁申请记录</h2>
+
+    <!-- 门禁用户删除申请 -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4><i class="bi bi-person-dash-fill me-2"></i>我提交的门禁用户删除申请</h4>
+        </div>
+        <div class="card-body">
+            {% if user_del_reqs %}
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>申请日期</th>
+                            <th>待删除用户</th>
+                            <th>工号</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for req in user_del_reqs %}
+                        <tr>
+                            <td>{{ req.request_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>{{ req.consumer_name }}</td>
+                            <td><code>{{ req.consumer_no }}</code></td>
+                            <td>
+                                {% if req.status == 'pending' %}<span class="badge bg-warning text-dark">待处理</span>
+                                {% elif req.status == 'completed' %}<span class="badge bg-success">已完成</span>
+                                {% else %}<span class="badge bg-secondary">{{ req.status }}</span>{% endif %}
+                            </td>
+                            <td>
+                                {% if req.status == 'pending' %}
+                                <form action="{{ url_for('menjin.cancel_my_menjin_request', req_type='user_delete', request_id=req.id) }}" method="POST">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('确定要撤销此申请吗？')">撤销</button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted">您没有提交过门禁用户删除申请。</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 门禁单项权限删除申请 -->
+    <div class="card">
+        <div class="card-header">
+            <h4><i class="bi bi-key-fill me-2"></i>我提交的门禁权限删除申请</h4>
+        </div>
+        <div class="card-body">
+            {% if priv_del_reqs %}
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>申请日期</th>
+                            <th>目标用户</th>
+                            <th>待删除权限</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for req in priv_del_reqs %}
+                        <tr>
+                            <td>{{ req.request_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>{{ req.consumer_name }}</td>
+                            <td><strong>{{ req.door_name }}</strong> (时段: {{ req.control_seg_name }})</td>
+                            <td>
+                                {% if req.status == 'pending' %}<span class="badge bg-warning text-dark">待处理</span>
+                                {% elif req.status == 'completed' %}<span class="badge bg-success">已完成</span>
+                                {% else %}<span class="badge bg-secondary">{{ req.status }}</span>{% endif %}
+                            </td>
+                            <td>
+                                {% if req.status == 'pending' %}
+                                <form action="{{ url_for('menjin.cancel_my_menjin_request', req_type='privilege_delete', request_id=req.id) }}" method="POST">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('确定要撤销此申请吗？')">撤销</button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted">您没有提交过门禁权限删除申请。</p>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}

@@ -269,3 +269,27 @@ class PartialDisableRequest(db.Model):
         return json.loads(self.system_user_links) if self.system_user_links else []
     def get_workstation_links(self):
         return json.loads(self.workstation_user_links) if self.workstation_user_links else []
+    
+class MenjinPrivilegeDeletionRequest(db.Model):
+    __tablename__ = 'menjin_privilege_deletion_requests'
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # 申请的发起人
+    requested_by_id = db.Column(db.Integer, db.ForeignKey('platform_users.id'), nullable=False)
+    
+    # 申请的目标 (门禁用户)
+    consumer_id = db.Column(db.Integer, nullable=False)
+    consumer_name = db.Column(db.String(64), nullable=False)
+    
+    # 申请的目标 (门禁权限)
+    door_id = db.Column(db.Integer, nullable=False)
+    door_name = db.Column(db.String(100), nullable=False)
+    control_seg_id = db.Column(db.Integer, nullable=False)
+    control_seg_name = db.Column(db.String(100), nullable=True)
+    
+    # 申请的状态
+    request_date = db.Column(db.DateTime, default=datetime.utcnow)
+    status = db.Column(db.String(20), default='pending', index=True)
+
+    # 关系
+    requested_by = db.relationship('User', backref='menjin_privilege_deletion_requests')

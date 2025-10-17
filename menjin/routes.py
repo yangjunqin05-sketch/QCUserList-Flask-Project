@@ -10,6 +10,7 @@ import time
 import json
 from . import bp
 from . import db_config
+from app.models import MenjinDeletionRequest, MenjinPrivilegeDeletionRequest
 
 ADMIN_EXECUTION_PASSWORD = "execute_password123"
 
@@ -381,6 +382,9 @@ def request_delete_user(consumer_no):
 
     return redirect(url_for('menjin.list_users_page'))
 
+
+
+
 @bp.route('/privileges', methods=['GET'])
 @login_required 
 def privileges_query_page():
@@ -497,25 +501,96 @@ def privileges_query_page():
                            title="权限查询")
 
 @bp.route('/privileges/delete/request', methods=['POST'])
+@bp.route('/privileges/delete/request', methods=['POST'])
+@login_required
 def request_delete_specific_privilege():
+    from app import db # 在函数内部导入 db
+    
     form = request.form
     try:
         consumer_id = int(form['consumer_id_to_delete_priv'])
         door_id = int(form['door_id_to_delete_priv'])
-        control_seg_id = int(form['control_seg_id_to_delete_priv'])
+        control_seg_id = int(form.get('control_seg_id_to_delete_priv', 1))
     except (ValueError, KeyError):
         flash("提交的ID无效。", "error")
-    else:
-        user_details = get_user_details_by_id(consumer_id)
-        door_details = get_door_details_by_id(door_id)
-        seg_details = get_control_seg_details_by_id(control_seg_id)
-        details_for_action = {
-            "target_consumer_id": consumer_id, "target_user_no": user_details.get('f_ConsumerNO'), "target_user_name": user_details.get('f_ConsumerName'),
-            "target_door_id": door_id, "target_door_name": door_details.get('f_DoorName'), "target_door_zone_name": door_details.get('f_ZoneName'),
-            "target_control_seg_id": control_seg_id, "target_control_seg_name": seg_details.get('f_ControlSegName')
-        }
-        if add_pending_action(action_type="DELETE_PRIVILEGE", **details_for_action):
-            flash("删除权限请求已提交。", "success")
-        else: flash("提交删除权限请求失败。", "error")
+        return redirect(url_for('menjin.privileges_query_page'))
+
+    # 获取详情用于创建申请记录
+    user_details = get_user_details_by_id(consumer_id)
+    door_details = get_door_details_by_id(door_id)
+    seg_details = get_control_seg_details_by_id(control_seg_id)
+    
+    if not user_details or not door_details:
+        flash("找不到用户或门的详细信息。", "error")
+        return redirect(url_for('menjin.privileges_query_page'))
+        
+    # 创建新的申请记录到主应用数据库
+    try:
+        new_req = MenjinPrivilegeDeletionRequest(
+            requested_by_id=current_user.id,
+            consumer_id=consumer_id,
+            consumer_name=user_details.get('f_ConsumerName', f"ID:{consumer_id}"),
+            door_id=door_id,
+            door_name=door_details.get('f_DoorName', f"ID:{door_id}"),
+            control_seg_id=control_seg_id,
+            control_seg_name=seg_details.get('f_ControlSegName') if seg_details else ("全时段" if control_seg_id == 1 else f"ID:{control_seg_id}")
+        )
+        db.session.add(new_req)
+        db.session.commit()
+        flash("删除门禁权限的请求已成功提交。", "success")
+    except Exception as e:
+        db.session.rollback()
+        print_log(f"写入 MenjinPrivilegeDeletionRequest 失败: {e}", "ERROR")
+        flash("提交申请时发生内部错误。", "danger")
+        
     redirect_args = {k.replace('_for_redirect', '').replace('current_', ''): v for k, v in form.items() if k.startswith('current_')}
     return redirect(url_for('menjin.privileges_query_page', **redirect_args))
+
+
+@bp.route('/my_requests')
+@login_required
+def my_menjin_requests():
+    # 从主数据库查询当前用户提交的两种门禁申请
+    user_del_reqs = MenjinDeletionRequest.query.filter_by(requested_by_id=current_user.id).order_by(MenjinDeletionRequest.request_date.desc()).all()
+    priv_del_reqs = MenjinPrivilegeDeletionRequest.query.filter_by(requested_by_id=current_user.id).order_by(MenjinPrivilegeDeletionRequest.request_date.desc()).all()
+    
+    return render_template('my_menjin_requests.html', 
+                           user_del_reqs=user_del_reqs,
+                           priv_del_reqs=priv_del_reqs)
+
+# --- 新增：处理用户撤销自己申请的逻辑 ---
+@bp.route('/requests/<string:req_type>/<int:request_id>/cancel', methods=['POST'])
+@login_required
+def cancel_my_menjin_request(req_type, request_id):
+    from app import db # 导入db
+
+    model_map = {
+        'user_delete': MenjinDeletionRequest,
+        'privilege_delete': MenjinPrivilegeDeletionRequest
+    }
+    Model = model_map.get(req_type)
+
+    if not Model:
+        flash('无效的申请类型。', 'danger')
+        return redirect(url_for('menjin.my_menjin_requests'))
+        
+    req = Model.query.get_or_404(request_id)
+
+    # 安全检查：确保用户只能撤销自己的申请
+    if req.requested_by_id != current_user.id:
+        flash('您没有权限撤销此申请。', 'danger')
+        return redirect(url_for('menjin.my_menjin_requests'))
+        
+    if req.status == 'pending':
+        try:
+            db.session.delete(req)
+            db.session.commit()
+            flash('申请已成功撤销。', 'success')
+        except Exception as e:
+            db.session.rollback()
+            print_log(f"撤销门禁申请失败: {e}", "ERROR")
+            flash('撤销申请时发生错误。', 'danger')
+    else:
+        flash('无法撤销一个已被处理的申请。', 'warning')
+        
+    return redirect(url_for('menjin.my_menjin_requests'))

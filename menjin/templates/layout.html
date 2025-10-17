@@ -6,6 +6,7 @@
     <ul class="nav nav-tabs mb-4">
         <li class="nav-item"><a class="nav-link {% if request.endpoint == 'menjin.list_users_page' %}active{% endif %}" href="{{ url_for('menjin.list_users_page') }}">用户查询</a></li>
         <li class="nav-item"><a class="nav-link {% if request.endpoint == 'menjin.privileges_query_page' %}active{% endif %}" href="{{ url_for('menjin.privileges_query_page') }}">权限查询</a></li>
+        <li class="nav-item"><a class="nav-link {% if request.endpoint == 'menjin.my_menjin_requests' %}active{% endif %}" href="{{ url_for('menjin.my_menjin_requests') }}">我的申请记录</a></li>
     </ul>
 
     <!-- 门禁模块的主内容区域 -->
