@@ -1,4 +1,4 @@
-<!-- app/templates/system_detail.html (禁用功能重构版) -->
+<!-- app/templates/system_detail.html (最终完整版) -->
 
 {% extends "base.html" %}
 
@@ -12,6 +12,7 @@
     </div>
     <hr>
     <div class="row g-4">
+        <!-- 左侧列 -->
         <div class="col-lg-8">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h4><i class="bi bi-people-fill me-2"></i>计算机化系统用户清单</h4>
@@ -20,12 +21,11 @@
                 {% endif %}
             </div>
             <div class="row">
-                <!-- 电脑用户 -->
+                <!-- 电脑用户卡片 -->
                 <div class="col-md-6">
                     <div class="card h-100">
                         <div class="card-header d-flex justify-content-between align-items-center"><strong>电脑用户清单</strong>{% if system.is_domain_joined %}<span class="badge bg-success">已加域</span>{% endif %}</div>
                         <div class="card-body">
-                            <!-- 核心修正：在这里添加 .filter_by(is_active=True) -->
                             {% set active_computer_users = system.system_users.filter_by(is_active=True).all() %}
                             {% if active_computer_users %}
                             <table class="table table-sm">
@@ -44,7 +44,6 @@
                             <p class="text-muted">该系统暂无活动电脑用户。</p>
                             {% endif %}
                             
-                            <!-- 已禁用用户 -->
                             {% set disabled_computer_users = system.system_users.filter_by(is_active=False).all() %}
                             {% if disabled_computer_users %}
                             <hr>
@@ -63,24 +62,28 @@
                         </div>
                         {% if current_user.role == 'admin' %}
                         <div class="card-footer">
-                            <h6 class="card-title small">添加电脑用户</h6>
-                            <form action="" method="post" novalidate>
-                                {{ add_sys_user_form.hidden_tag() }}
-                                <div class="mb-2">{{ add_sys_user_form.username(class="form-control form-control-sm", placeholder="用户名") }}</div>
-                                <div class="mb-2">{{ add_sys_user_form.chinese_name(class="form-control form-control-sm", placeholder="中文名") }}</div>
-                                <div class="mb-2">{{ add_sys_user_form.system_role(class="form-control form-control-sm", placeholder="电脑角色/权限") }}</div>
-                                {{ add_sys_user_form.submit_computer(class="btn btn-secondary btn-sm") }}
-                            </form>
+                            <a class="text-decoration-none" data-bs-toggle="collapse" href="#addComputerUserForm" role="button">
+                                <h6 class="card-title small"><i class="bi bi-plus-circle me-1"></i>添加电脑用户</h6>
+                            </a>
+                            <div class="collapse" id="addComputerUserForm">
+                                <form action="" method="post" novalidate class="mt-2">
+                                    {{ add_sys_user_form.hidden_tag() }}
+                                    <div class="mb-2">{{ add_sys_user_form.username(class="form-control form-control-sm", placeholder="用户名") }}</div>
+                                    <div class="mb-2">{{ add_sys_user_form.chinese_name(class="form-control form-control-sm", placeholder="中文名") }}</div>
+                                    <div class="mb-2">{{ add_sys_user_form.system_role(class="form-control form-control-sm", placeholder="电脑角色/权限") }}</div>
+                                    {{ add_sys_user_form.submit_computer(class="btn btn-secondary btn-sm") }}
+                                </form>
+                            </div>
                         </div>
                         {% endif %}
                     </div>
                 </div>
-                <!-- 工作站用户 -->
+
+                <!-- 工作站用户卡片 -->
                 <div class="col-md-6">
                     <div class="card h-100">
                         <div class="card-header d-flex justify-content-between align-items-center"><strong>工作站用户清单</strong>{% if system.is_workstation_domain_joined %}<span class="badge bg-success">已加域</span>{% endif %}</div>
                         <div class="card-body">
-                             <!-- 核心修正：在这里添加 .filter_by(is_active=True) -->
                              {% set active_ws_users = system.workstation_users.filter_by(is_active=True).all() %}
                              {% if active_ws_users %}
                              <table class="table table-sm">
@@ -99,7 +102,6 @@
                             <p class="text-muted">该系统暂无活动工作站用户。</p>
                             {% endif %}
 
-                            <!-- 已禁用用户 -->
                             {% set disabled_ws_users = system.workstation_users.filter_by(is_active=False).all() %}
                             {% if disabled_ws_users %}
                             <hr>
@@ -118,19 +120,64 @@
                         </div>
                         {% if current_user.role == 'admin' %}
                         <div class="card-footer">
-                             <h6 class="card-title small">添加工作站用户</h6>
-                            <form action="" method="post" novalidate>
-                                {{ add_ws_user_form.hidden_tag() }}
-                                <div class="mb-2">{{ add_ws_user_form.username(class="form-control form-control-sm", placeholder="用户名") }}</div>
-                                <div class="mb-2">{{ add_ws_user_form.chinese_name(class="form-control form-control-sm", placeholder="中文名") }}</div>
-                                <div class="mb-2">{{ add_ws_user_form.role(class="form-control form-control-sm", placeholder="工作站角色") }}</div>
-                                {{ add_ws_user_form.submit_workstation(class="btn btn-secondary btn-sm") }}
-                            </form>
+                            <a class="text-decoration-none" data-bs-toggle="collapse" href="#addWorkstationUserForm" role="button">
+                                <h6 class="card-title small"><i class="bi bi-plus-circle me-1"></i>添加工作站用户</h6>
+                            </a>
+                            <div class="collapse" id="addWorkstationUserForm">
+                                <form action="" method="post" novalidate class="mt-2">
+                                    {{ add_ws_user_form.hidden_tag() }}
+                                    <div class="mb-2">{{ add_ws_user_form.username(class="form-control form-control-sm", placeholder="用户名") }}</div>
+                                    <div class="mb-2">{{ add_ws_user_form.chinese_name(class="form-control form-control-sm", placeholder="中文名") }}</div>
+                                    <div class="mb-2">{{ add_ws_user_form.role(class="form-control form-control-sm", placeholder="工作站角色") }}</div>
+                                    {{ add_ws_user_form.submit_workstation(class="btn btn-secondary btn-sm") }}
+                                </form>
+                            </div>
                         </div>
                         {% endif %}
                     </div>
                 </div>
+            </div> <!-- End of user lists row -->
+
+            <!-- 远程操作卡片 -->
+            {% if current_user.role == 'admin' and system.computer_name %}
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-terminal me-2"></i>远程操作</h5>
+                    <p class="card-text small text-muted">选择一个脚本在此计算机 ({{ system.computer_name }}) 上执行。</p>
+                    <form onsubmit="executeScript(event, {{ system.id }}, '{{ system.computer_name }}')">
+                        <div class="input-group">
+                            <select class="form-select" id="script-select-{{ system.id }}" required>
+                                <option value="" selected disabled>-- 请选择一个脚本 --</option>
+                                {% for script in scripts %}
+                                <option value="{{ script.id }}">{{ script.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-play-fill me-1"></i>立即执行
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
+            {% endif %}
+        </div> <!-- End of col-lg-8 (左侧列) -->
+
+        <!-- 右侧列 -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="bi bi-info-circle-fill me-2"></i>系统信息</h4>
+                </div>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item"><strong>分组:</strong> {{ system.group.name if system.group else '未分组' }}</li>
+                    <li class="list-group-item"><strong>计算机名:</strong> {{ system.computer_name or 'N/A' }}</li>
+                    <li class="list-group-item"><strong>IP 地址:</strong> {{ system.ip_address or 'N/A' }}</li>
+                    <li class="list-group-item"><strong>备注:</strong> {{ system.notes or '无' }}</li>
+                </ul>
+            </div>
+        </div> <!-- End of col-lg-4 (右侧列) -->
+    </div> <!-- End of main row g-4 -->
+</div>
 
 <!-- 远程执行结果模态框 -->
 <div class="modal fade" id="jobResultModal" tabindex="-1" aria-labelledby="jobResultModalLabel" aria-hidden="true">
@@ -156,7 +203,6 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- ### 核心修改：删除了这里所有多余的HTML代码 ### -->
 <script>
 let pollInterval;
 let jobIsFinished = false; 
@@ -209,7 +255,7 @@ function startPolling(jobId, hostname) {
                     jobIsFinished = true;
                 }
             });
-    }, 3000); // 每 3 秒轮询一次
+    }, 3000);
 }
 
 function updateModal(data) {
@@ -232,18 +278,9 @@ function updateModal(data) {
     }
 }
 
-// 当模态框关闭时，停止轮询
 resultModalElement.addEventListener('hidden.bs.modal', () => {
     if (pollInterval) { clearInterval(pollInterval); }
 });
-
-// (可选) 如果你还想让模态框可拖动，可以保留 jQuery UI 的代码，
-// 但需要确保在 base.html 中引入了 jQuery 和 jQuery UI
-// $(document).ready(function() {
-//     $('.modal-dialog').draggable({
-//         handle: ".modal-header"
-//     });
-// });
 
 </script>
 {% endblock %}
