@@ -1,6 +1,6 @@
 # app/__init__.py (最终禁用重构版)
 import os
-from flask import Flask
+from flask import Flask, Markup
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager, current_user
@@ -43,6 +43,19 @@ def create_app(config_class=Config):
                 except Exception:
                     return dict(pending_requests_count=0)
             return dict(pending_requests_count=0)
+    def split_at_third_comma(s):
+        if not s:
+            return ''
+        parts = s.split('、')
+        if len(parts) > 6:
+            # 在第三个顿号后插入 <br>
+            first_part = '、'.join(parts[:6])
+            second_part = '、'.join(parts[6:])
+            # 使用 Markup 告诉 Jinja2 这个字符串是安全的 HTML，不要转义 <br>
+            return Markup(f"{first_part}、<br>{second_part}")
+        return s # 如果顿号不足3个，则返回原字符串
+
+    app.jinja_env.filters['split_at_third_comma'] = split_at_third_comma
 
     from app.cli import register as register_cli
     register_cli(app)

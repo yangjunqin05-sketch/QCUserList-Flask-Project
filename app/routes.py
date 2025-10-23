@@ -4,7 +4,8 @@ from flask_login import current_user, login_user, logout_user, login_required
 from app import db
 from app.models import (User, System, SystemAccount, CheckHistory, SystemUser, WorkstationUser, 
                         SystemRole, DisableRequest, Group, Script, Job, UserRequest,RoleChangeRequest,
-                        MenjinDeletionRequest, PartialDisableRequest,MenjinPrivilegeDeletionRequest)
+                        MenjinDeletionRequest, PartialDisableRequest,MenjinPrivilegeDeletionRequest,
+                        PendingSystem)
 from app.forms import (LoginForm, SearchUserForm, EditSystemForm, AssignGroupForm, 
                        AddSystemForm, GroupForm, ScriptForm, ExecuteJobForm,
                        UserRequestForm, AdminUserForm, AddComputerUserForm, 
@@ -888,6 +889,7 @@ def edit_system(system_id):
         system.ip_address = form.ip_address.data.strip()
         system.backup_method = form.backup_method.data
         system.backup_frequency = form.backup_frequency.data
+        system.it_check_content = form.it_check_content.data.strip()
         
         try:
             db.session.commit()
@@ -910,6 +912,7 @@ def edit_system(system_id):
         form.ip_address.data = system.ip_address
         form.backup_method.data = system.backup_method
         form.backup_frequency.data = system.backup_frequency
+        form.it_check_content.data = system.it_check_content
 
     # 如果是 POST 请求且验证失败，WTForms 会自动保留用户输入的数据并显示错误
     # 如果是 GET 请求，上面的代码块已经用数据库数据填充了表单
@@ -1428,3 +1431,61 @@ def cancel_menjin_privilege_del_request(request_id):
         flash('无法撤销一个已被处理的申请。', 'warning')
         
     return redirect(url_for('routes.pending_requests'))
+
+@bp.route('/api/agent/register_pending_system', methods=['POST'])
+def agent_register_pending_system():
+    data = request.json
+    system_name = data.get('system_name')
+    hostname = data.get('hostname')
+    ip_addresses = data.get('ip_addresses')
+
+    if not system_name or not hostname:
+        return jsonify({'status': 'error', 'message': '缺少必要信息。'}), 400
+
+    existing = PendingSystem.query.filter_by(computer_name=hostname).first()
+    if existing:
+        existing.system_name = system_name
+        existing.ip_address = ip_addresses
+        existing.first_seen = datetime.utcnow()
+        message = "信息已更新。"
+    else:
+        new_pending_system = PendingSystem(
+            system_name=system_name,
+            computer_name=hostname,
+            ip_address=ip_addresses
+        )
+        db.session.add(new_pending_system)
+        message = "新计算机信息已成功记录。"
+    
+    try:
+        db.session.commit()
+        return jsonify({'status': 'success', 'message': message})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'status': 'error', 'message': f'数据库错误: {e}'}), 500
+
+
+# 2. Page - 用于管理员查看列表
+@bp.route('/admin/pending_systems')
+@login_required
+@roles_required('admin')
+def pending_systems():
+    pending_list = PendingSystem.query.order_by(PendingSystem.first_seen.desc()).all()
+    return render_template('admin_pending_systems.html', 
+                           title='待添加系统',
+                           pending_list=pending_list)
+
+# 3. Action - 用于管理员从列表中删除已处理的条目
+@bp.route('/admin/pending_systems/<int:pending_id>/delete', methods=['POST'])
+@login_required
+@roles_required('admin')
+def delete_pending_system(pending_id):
+    pending = PendingSystem.query.get_or_404(pending_id)
+    try:
+        db.session.delete(pending)
+        db.session.commit()
+        flash(f'已从未处理列表中移除计算机 “{pending.computer_name}”。', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'移除失败: {e}', 'danger')
+    return redirect(url_for('routes.pending_systems'))

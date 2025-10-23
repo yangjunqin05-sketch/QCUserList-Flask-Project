@@ -79,6 +79,7 @@
                                 </a>
                                 <ul class="dropdown-menu">
                                     <li><a class="dropdown-item d-flex justify-content-between align-items-center" href="{{ url_for('routes.pending_requests') }}">待执行申请 {% if pending_requests_count %}<span class="badge rounded-pill bg-danger">{{ pending_requests_count }}</span>{% endif %}</a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('routes.pending_systems') }}">待添加系统</a></li>
                                     <li><a class="dropdown-item" href="{{ url_for('routes.manage_users') }}">平台用户管理</a></li>
                                     <li><a class="dropdown-item" href="{{ url_for('routes.manage_groups') }}">分组管理</a></li>
                                     <li><hr class="dropdown-divider"></li>

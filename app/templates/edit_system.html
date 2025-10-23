@@ -50,6 +50,15 @@
                         <div class="mb-3">{{ form.backup_frequency.label(class="form-label") }} {{ form.backup_frequency(class="form-select") }}</div>
                     </div>
                 </div>
+            <div class="card mt-4">
+                    <div class="card-header">IT核查内容</div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            {{ form.it_check_content.label(class="form-label") }}
+                            {{ form.it_check_content(class="form-control", placeholder="例如：用户管理（工作站、电脑）、权限管理...") }}
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
         <div class="mt-4">

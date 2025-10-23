@@ -79,6 +79,7 @@ class EditSystemForm(FlaskForm):
     ip_address = StringField('IP 地址', validators=[Optional(), IPAddress(message="请输入有效的IP地址")])
     is_workstation_domain_joined = BooleanField('工作站是否加入域')
     notes = TextAreaField('备注', validators=[Optional()], render_kw={"rows": 4})
+    it_check_content = TextAreaField('IT核查内容', validators=[Optional()], render_kw={"rows": 6})
     backup_method = SelectField('备份方式', choices=[
         ('', '--- 请选择 ---'), 
         ('avamar自动备份', 'Avamar自动备份'), 

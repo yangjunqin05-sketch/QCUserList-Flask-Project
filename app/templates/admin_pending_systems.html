@@ -1,0 +1,46 @@
+<!-- app/templates/admin_pending_systems.html (简化版) -->
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">待添加系统</h1>
+    <p class="text-muted">此列表显示了已安装Agent的计算机信息。请参考此列表，手动到“IT核查管理”页面创建或更新系统条目。处理完毕后，可在此处将记录移除。</p>
+
+    <div class="card">
+        <div class="card-body">
+            {% if pending_list %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>建议系统名称</th>
+                            <th>计算机名</th>
+                            <th>IP地址</th>
+                            <th>上报时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for pending in pending_list %}
+                        <tr>
+                            <td>{{ pending.system_name }}</td>
+                            <td><code>{{ pending.computer_name }}</code></td>
+                            <td>{{ pending.ip_address }}</td>
+                            <td><span class="utc-datetime" data-timestamp="{{ pending.first_seen }}">--</span></td>
+                            <td>
+                                <form action="{{ url_for('routes.delete_pending_system', pending_id=pending.id) }}" method="POST" onsubmit="return confirm('确认已手动处理该条目，并将其从列表中移除吗？')">
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary">标记为已处理</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted">当前没有待添加的系统。</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

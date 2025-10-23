@@ -1,5 +1,6 @@
 <!-- app/templates/it_check_manage.html (修复跳转问题版) -->
 
+
 {% extends "base.html" %}
 
 {% block content %}
@@ -16,7 +17,6 @@
     <!-- 筛选表单 -->
     <div class="card mb-4">
         <div class="card-body">
-            <!-- 核心修正 1: form action 指向 it_check_manage -->
             <form method="GET" action="{{ url_for('routes.it_check_manage') }}">
                 <div class="row g-3 align-items-end">
                     <div class="col-md-4">
@@ -46,18 +46,16 @@
                             <th>仪器/系统名称</th>
                             <th>系统分组</th>
                             <th>是否加域</th>
-                            <th>计算机名</th>
-                            <th>IP 地址</th>
+                            <th style="width: 600px;text-align: center;">IT核查内容</th> <!-- 可以在表头也加一个宽度 -->
                             <th>上次核查</th>
                             <th>
-                                <!-- 核心修正 2: 排序链接指向 it_check_manage -->
                                 <a href="{{ url_for('routes.it_check_manage', group=current_group_id, sort_by='next_check_date') }}" class="text-decoration-none">
                                     下次核查 <i class="bi bi-arrow-down-up small"></i>
                                 </a>
                             </th>
                             <th>状态</th>
                             {% if current_user.role in ['admin'] %}
-                            <th style="min-width: 220px;">操作</th>
+                            <th style="min-width: 220px;text-align: left">操作</th>
                             {% endif %}
                         </tr>
                     </thead>
@@ -68,10 +66,21 @@
                             <td><a href="{{ url_for('routes.system_detail', system_id=system.id) }}">{{ system.name }}</a></td>
                             <td><span class="badge bg-secondary">{{ system.group.name if system.group else '未分组' }}</span></td>
                             <td><span class="badge {{ 'bg-success' if system.is_domain_joined else 'bg-secondary' }}">{{ "是" if system.is_domain_joined else "否" }}</span></td>
-                            <td>{{ system.computer_name or 'N/A' }}</td>
-                            <td>{{ system.ip_address or 'N/A' }}</td>
+                            <td>
+                                <div style="
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: start; /* 或 'center' 来水平居中 */
+                                    height: 3.5em; /* 保持固定高度用于垂直对齐 */
+                                " title="{{ system.it_check_content }}">
+                                    <small>
+                                        <!-- 应用自定义过滤器，并处理空值 -->
+                                        {{ (system.it_check_content or '未配置') | split_at_third_comma }}
+                                    </small>
+                                </div>
+                            </td>
                             
-                            {# 操作权限开放给 admin 和 qc #}
+                            {# 操作权限开放给 admin #}
                             {% if current_user.role in ['admin'] %}
                                 <form action="{{ url_for('routes.update_dates', system_id=system.id) }}" method="POST">
                                     <td><input type="date" name="last_check_date" class="form-control form-control-sm" value="{{ system.last_check_date.strftime('%Y-%m-%d') if system.last_check_date }}"></td>
@@ -85,17 +94,14 @@
                                     </td>
                                     <td>
                                         <div class="d-flex flex-nowrap">
-                                            <button type="submit" class="btn btn-outline-primary btn-sm me-1">保存日期</button>
+                                            <button type="submit" class="btn btn-outline-primary btn-sm me-1" title="保存日期">保存</button>
                                         </form>
                                         <form action="{{ url_for('routes.perform_check_from_index', system_id=system.id) }}" method="POST" class="d-inline me-1">
-                                            <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('确认 “{{ system.name }}” 今日核查完成吗？')">核查完成</button>
+                                            <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('确认 “{{ system.name }}” 今日核查完成吗？')" title="今日核查完成">完成</button>
                                         </form>
-                                        {# 只有 admin 才能删除 #}
-                                        {% if current_user.role == 'admin' %}
                                         <form action="{{ url_for('routes.delete_system', system_id=system.id) }}" method="POST" class="d-inline">
-                                            <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('警告：确定要永久删除 “{{ system.name }}” 吗？')">删除</button>
+                                            <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('警告：确定要永久删除 “{{ system.name }}” 吗？')" title="删除系统">删除</button>
                                         </form>
-                                        {% endif %}
                                         </div>
                                     </td>
                             {% else %}
@@ -108,7 +114,7 @@
                                         {% else %}<span class="badge bg-success">正常</span>{% endif %}
                                     {% endif %}
                                 </td>
-                                <td><!-- 非操作员无操作列 --></td>
+                                {% if current_user.role in ['admin'] %}<td></td>{% endif %} {# 补齐一列以对齐表头 #}
                             {% endif %}
                         </tr>
                         {% else %}

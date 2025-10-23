@@ -119,6 +119,7 @@ class System(db.Model):
     is_domain_joined = db.Column(db.Boolean, default=False)
     is_workstation_domain_joined = db.Column(db.Boolean, default=False)
     notes = db.Column(db.Text, nullable=True)
+    it_check_content = db.Column(db.Text, nullable=True)
     warning_days = db.Column(db.Integer, default=7, nullable=False)
     
     # --- 常规核查字段 ---
@@ -293,3 +294,12 @@ class MenjinPrivilegeDeletionRequest(db.Model):
 
     # 关系
     requested_by = db.relationship('User', backref='menjin_privilege_deletion_requests')
+
+class PendingSystem(db.Model):
+    __tablename__ = 'pending_systems'
+    id = db.Column(db.Integer, primary_key=True)
+    system_name = db.Column(db.String(150), nullable=False)
+    computer_name = db.Column(db.String(100), unique=True, nullable=False, index=True)
+    ip_address = db.Column(db.String(255), nullable=True)
+    first_seen = db.Column(db.DateTime, default=datetime.utcnow)
+    status = db.Column(db.String(20), default='pending', index=True)
