@@ -347,13 +347,10 @@ async function approveAllMenjinPrivileges() {
     }
 
     try {
-        // 核心修正：从页面上的任意一个WTF表单中获取CSRF令牌
-        const csrfInput = document.querySelector('form input[name="csrf_token"]');
-        if (!csrfInput) {
-            alert('错误：无法在页面上找到CSRF令牌，无法继续操作。');
-            return;
-        }
-        const csrfToken = csrfInput.value;
+        // --- 核心修正 ---
+        // 直接从 Flask-WTF 的 csrf_token() 函数获取令牌，不再依赖页面上的其他表单。
+        // 这确保了无论页面结构如何，我们总能获得一个有效的令牌。
+        const csrfToken = "{{ csrf_token() }}";
 
         const response = await fetch("{{ url_for('routes.approve_all_menjin_privilege_del') }}", {
             method: 'POST',

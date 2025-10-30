@@ -135,6 +135,31 @@
         });
     });
     </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 1. 获取一次全局的 CSRF 令牌
+            const csrfToken = "{{ csrf_token() }}";
+
+            // 2. 监听整个文档的表单提交事件
+            document.body.addEventListener('submit', function(event) {
+                const form = event.target;
+                
+                // 3. 只处理 POST 请求的表单
+                if (form.method.toLowerCase() === 'post') {
+                    // 4. 检查表单中是否已经有了 CSRF 令牌
+                    if (!form.querySelector('input[name="csrf_token"]')) {
+                        // 5. 如果没有，就动态创建一个隐藏的 input 并插入到表单中
+                        const csrfInput = document.createElement('input');
+                        csrfInput.setAttribute('type', 'hidden');
+                        csrfInput.setAttribute('name', 'csrf_token');
+                        csrfInput.setAttribute('value', csrfToken);
+                        form.appendChild(csrfInput);
+                        console.log('CSRF token injected into form:', form.action);
+                    }
+                }
+            });
+        });
+    </script>
     {% endblock %}
     
 </body>

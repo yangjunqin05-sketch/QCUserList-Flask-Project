@@ -107,6 +107,7 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <form id="modal-form" method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="modal-body">
             <p class="text-muted">请勾选需要禁用的权限，勾选系统名称可全选该系统下的所有权限。</p>
             <div id="modal-body-content">
@@ -129,6 +130,7 @@
 <script>
 
 document.addEventListener('DOMContentLoaded', function() {
+    const csrfToken = "{{ csrf_token() }}";
     const searchInput = document.getElementById('user-search-input');
     const tableBody = document.getElementById('user-directory-body');
     const userRole = "{{ current_user.role }}";
@@ -181,6 +183,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     actionButtons = `
                         <td rowspan="${numAccounts}" style="vertical-align: middle;">
                             <form action="/user_requests/disable_person/${person.chinese_name}" method="POST" onsubmit="confirmFullDisable(event, '${person.chinese_name}')" class="d-inline">
+                                <input type="hidden" name="csrf_token" value="${csrfToken}">
                                 <button type="submit" class="btn btn-danger btn-sm">全部禁用</button>
                             </form>
                             <button type="button" class="btn btn-warning btn-sm d-inline ms-1" onclick="openPartialDisableModal('${person.chinese_name}')">部分禁用</button>
@@ -218,13 +221,26 @@ document.addEventListener('DOMContentLoaded', function() {
 async function confirmFullDisable(event, chineseName) {
     event.preventDefault(); 
     const form = event.target;
+    const csrfTokenInput = form.querySelector('input[name="csrf_token"]');
+    if (!csrfTokenInput) {
+        alert('错误：无法找到 CSRF 令牌，请刷新页面。');
+        return;
+    }
+    const csrfToken = csrfTokenInput.value;
+
     const disableSystemAccess = confirm(`警告：确定要为 “${chineseName}” 的所有活动账户申请【禁用】吗？`);
     if (!disableSystemAccess) return;
     
     const syncMenjin = confirm(`是否需要为 “${chineseName}” 同步处理【门禁权限】？\n\n- 点击 [确定] 将在提交后，跳转到门禁页面。\n- 点击 [取消] 将仅提交系统权限的禁用申请。`);
     if (syncMenjin) {
         try {
-            const response = await fetch(form.action, { method: form.method });
+            const formData = new FormData();
+            formData.append('csrf_token', csrfToken);
+            
+            const response = await fetch(form.action, {
+                method: form.method,
+                body: formData // 将包含 CSRF 令牌的数据作为请求体
+            });
             if (response.ok) {
                 const menjinUrl = new URL("{{ url_for('menjin.list_users_page', _external=True) }}");
                 menjinUrl.searchParams.set('search_name', chineseName);

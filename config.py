@@ -7,7 +7,7 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'a-very-secret-key-that-you-should-change'
     
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'sqlite:///' + os.path.join(basedir, 'instance', 'app.db')
+        'mysql+pymysql://qc_user:123456@localhost/qc_system'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # 预定义的工作站角色清单 (用于数据库初始化)

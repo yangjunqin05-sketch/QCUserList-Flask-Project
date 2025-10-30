@@ -104,16 +104,16 @@ def upgrade():
     sa.ForeignKeyConstraint(['system_id'], ['system.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_table('deletion_requests',
+    op.create_table('disable_requests',  # <-- 修改表名
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('account_to_delete_id', sa.Integer(), nullable=False),
+    sa.Column('account_to_disable_id', sa.Integer(), nullable=False), # <-- 修改列名
     sa.Column('requested_by_id', sa.Integer(), nullable=False),
     sa.Column('request_date', sa.Date(), nullable=True),
     sa.Column('status', sa.String(length=20), nullable=True),
-    sa.ForeignKeyConstraint(['account_to_delete_id'], ['system_accounts.id'], ),
+    sa.ForeignKeyConstraint(['account_to_disable_id'], ['system_accounts.id'], ), # <-- 确保外键也正确
     sa.ForeignKeyConstraint(['requested_by_id'], ['platform_users.id'], ),
     sa.PrimaryKeyConstraint('id')
-    )
+)
     op.create_table('job',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('system_id', sa.Integer(), nullable=False),
@@ -204,7 +204,7 @@ def downgrade():
         batch_op.drop_index(batch_op.f('ix_job_status'))
 
     op.drop_table('job')
-    op.drop_table('deletion_requests')
+    op.drop_table('disable_requests')
     op.drop_table('check_history')
     with op.batch_alter_table('system', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_system_system_number'))

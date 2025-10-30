@@ -80,6 +80,7 @@
                         <form method="POST" action="{{ url_for('menjin.request_delete_user', consumer_no=user.f_ConsumerNO) }}"
                               onsubmit="return confirmAction('确定要将删除用户 [{{ user.f_ConsumerName }}] (工号: {{ user.f_ConsumerNO }}) 的请求加入待处理列表吗？');"
                               style="display: inline;" class="ms-1">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-danger btn-sm">请求删除用户</button>
                         </form>
                     </td>
@@ -92,7 +93,9 @@
 
 {% block scripts_extra %}
 <script>
+    
 function toggleEditMode(consumerNO, showEdit) {
+    const csrfToken = "{{ csrf_token() }}"; 
     const displayDiv = document.getElementById(`dept-display-${consumerNO}`);
     const editDiv = document.getElementById(`dept-edit-${consumerNO}`);
     const modifyButton = document.getElementById(`btn-modify-${consumerNO}`);
@@ -109,6 +112,7 @@ function toggleEditMode(consumerNO, showEdit) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    const csrfToken = "{{ csrf_token() }}";
     const departmentSelect = document.getElementById('department_id');
     const nameInput = document.getElementById('search_name');
     const tableBody = document.getElementById('user-table-body');
@@ -175,6 +179,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <td class="actions">
                              <button type="button" class="btn btn-outline-primary btn-sm" id="btn-modify-${user.f_ConsumerNO}" onclick="toggleEditMode('${user.f_ConsumerNO}', true)">修改部门</button>
                              <form method="POST" action="/menjin/users/${user.f_ConsumerNO}/delete/request" onsubmit="return confirmAction('确定要将删除用户 [${user.f_ConsumerName}] (工号: ${user.f_ConsumerNO}) 的请求加入待处理列表吗？');" style="display: inline;" class="ms-1">
+                                <input type="hidden" name="csrf_token" value="${csrfToken}">
                                 <button type="submit" class="btn btn-danger btn-sm">请求删除用户</button>
                             </form>
                         </td>

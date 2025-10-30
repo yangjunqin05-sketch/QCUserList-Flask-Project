@@ -8,6 +8,7 @@
     <h2>权限查询</h2>
     <div class="filter-form">
         <form method="GET" action="{{ url_for('menjin.privileges_query_page') }}" id="queryForm">
+            
             <div class="mb-3">
                 <label for="query_type" class="form-label">查询类型:</label>
                 <select id="query_type" name="query_type" class="form-select" onchange="this.form.submit()">
@@ -123,6 +124,7 @@
                             <input type="hidden" name="door_id_to_delete_priv" value="{{ item.DoorID }}">
                             <input type="hidden" name="control_seg_id_to_delete_priv" value="{{ item.ControlSegID if item.ControlSegID is not none else 1 }}">
                             
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <!-- 隐藏字段，用于在提交后保持筛选状态 -->
                             <input type="hidden" name="current_query_type" value="{{ query_type }}">
                             <input type="hidden" name="current_target_consumer_id_for_redirect" value="{{ selected_consumer_id or '' }}">
