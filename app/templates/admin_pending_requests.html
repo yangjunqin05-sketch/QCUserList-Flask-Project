@@ -293,21 +293,28 @@
 
 </div>
 <div class="card mt-4">
-    <div class="card-header">
-        <h4><i class="bi bi-key-fill me-2"></i>门禁单项权限删除申请</h4>
-    </div>
-    <div class="card-body">
-        {% if menjin_priv_del_requests %}
-        <table class="table table-hover align-middle">
-            <thead>
-                <tr>
-                    <th>申请人 / 日期</th>
-                    <th>目标用户</th>
-                    <th>待删除权限</th>
-                    <th>操作</th>
-                </tr>
-            </thead>
-            <tbody>
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h4><i class="bi bi-key-fill me-2"></i>门禁单项权限删除申请</h4>
+            {# 只有当存在待处理申请时，才显示按钮 #}
+            {% if menjin_priv_del_requests %}
+            <button class="btn btn-sm btn-outline-danger" onclick="approveAllMenjinPrivileges()">
+                <i class="bi bi-check-all me-1"></i>一键批准所有
+            </button>
+            {% endif %}
+        </div>
+        <div class="card-body">
+            {% if menjin_priv_del_requests %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>申请人 / 日期</th>
+                            <th>目标用户</th>
+                            <th>待删除权限</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
                 {% for req in menjin_priv_del_requests %}
                 <tr>
                     <td>{{ req.requested_by.chinese_name }}<small class="d-block text-muted"><span class="utc-datetime" data-timestamp="{{ req.request_date }}">--</span></small></td>
@@ -330,4 +337,44 @@
         {% endif %}
     </div>
 </div>
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script>
+async function approveAllMenjinPrivileges() {
+    if (!confirm('警告：确定要批准当前页面上所有的“门禁单项权限删除申请”吗？此操作不可恢复。')) {
+        return;
+    }
+
+    try {
+        // 核心修正：从页面上的任意一个WTF表单中获取CSRF令牌
+        const csrfInput = document.querySelector('form input[name="csrf_token"]');
+        if (!csrfInput) {
+            alert('错误：无法在页面上找到CSRF令牌，无法继续操作。');
+            return;
+        }
+        const csrfToken = csrfInput.value;
+
+        const response = await fetch("{{ url_for('routes.approve_all_menjin_privilege_del') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken // 将令牌放入请求头
+            },
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.status === 'success') {
+            alert(`操作完成！\n成功: ${result.success_count}条\n失败: ${result.failure_count}条`);
+            window.location.reload();
+        } else {
+            alert(`操作失败: ${result.message || '服务器返回未知错误'}`);
+        }
+    } catch (error) {
+        console.error('一键批准时发生错误:', error);
+        alert('请求失败，请检查网络或联系管理员。');
+    }
+}
+</script>
 {% endblock %}

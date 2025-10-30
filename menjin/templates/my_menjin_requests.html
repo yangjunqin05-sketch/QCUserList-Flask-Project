@@ -28,7 +28,7 @@
                     <tbody>
                         {% for req in user_del_reqs %}
                         <tr>
-                            <td>{{ req.request_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td><span class="utc-datetime" data-timestamp="{{ req.request_date }}">--</span></td>
                             <td>{{ req.consumer_name }}</td>
                             <td><code>{{ req.consumer_no }}</code></td>
                             <td>
@@ -75,7 +75,7 @@
                     <tbody>
                         {% for req in priv_del_reqs %}
                         <tr>
-                            <td>{{ req.request_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td><span class="utc-datetime" data-timestamp="{{ req.request_date }}">--</span></td>
                             <td>{{ req.consumer_name }}</td>
                             <td><strong>{{ req.door_name }}</strong> (时段: {{ req.control_seg_name }})</td>
                             <td>

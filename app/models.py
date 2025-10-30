@@ -139,7 +139,9 @@ class System(db.Model):
     is_restore_verified = db.Column(db.Boolean, default=False)
     last_restore_verification_date = db.Column(db.Date, nullable=True)
     restore_verification_cycle = db.Column(db.Integer, nullable=True)
-    
+    # --- 新增备份日期字段 ---
+    last_backup_date = db.Column(db.Date, nullable=True)
+    next_backup_date = db.Column(db.Date, nullable=True)
     # --- 关系 (Relationships) ---
     history = db.relationship('CheckHistory', backref='system', lazy='dynamic', cascade="all, delete-orphan")
     system_users = db.relationship('SystemUser', backref='system', lazy='dynamic', cascade="all, delete-orphan")

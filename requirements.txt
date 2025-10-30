@@ -1,8 +1,15 @@
+# Flask
 Flask
-Flask-SQLAlchemy
-Flask-Migrate
 Flask-Login
+Flask-Migrate
+Flask-SQLAlchemy
 Flask-WTF
-python-dotenv
+
+# Database Drivers
+pyodbc
+
+# HTTP Requests (for Agent)
 requests
-pyinstaller
+
+# Utilities
+python-dotenv  # Used by Flask CLI to load .flaskenv files

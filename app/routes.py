@@ -10,11 +10,13 @@ from app.forms import (LoginForm, SearchUserForm, EditSystemForm, AssignGroupFor
                        AddSystemForm, GroupForm, ScriptForm, ExecuteJobForm,
                        UserRequestForm, AdminUserForm, AddComputerUserForm, 
                        AddWorkstationUserForm, BatchImportForm,RoleChangeRequestForm)
+from sqlalchemy import case
 from datetime import date, timedelta, datetime
 from functools import wraps
 from sqlalchemy import or_
 from flask import session
 from collections import defaultdict
+from dateutil.relativedelta import relativedelta
 import json
 
 
@@ -238,14 +240,71 @@ def batch_import_users(system_id):
 @login_required
 @roles_required('admin', 'qc')
 def backup_dashboard():
-    systems = System.query.order_by(System.system_number).all()
-    return render_template('backup_dashboard.html', title='系统备份清单', systems=systems)
+    priority_order = case(
+        (System.backup_frequency == '每季度', 1
+         ),
+        (System.backup_frequency == '每月', 2
+         ),
+        else_=3
+    )
+    systems = System.query.order_by(
+        priority_order, # 首先按优先级排序
+        System.next_backup_date.asc(), # 然后按下次备份日期升序
+        System.system_number.asc() # 最后按系统编号排序
+    ).all()
+    return render_template('backup_dashboard.html', title='系统备份清单', systems=systems, today=date.today())
+
+@bp.route('/backup/perform/<int:system_id>', methods=['POST'])
+@login_required
+@roles_required('admin', 'qc') # 允许 admin 和 qc 操作
+def perform_backup(system_id):
+    system = System.query.get_or_404(system_id)
+    today = date.today()
+    
+    # 更新上次备份日期
+    system.last_backup_date = today
+    
+    # 根据频次计算下一次备份日期
+    next_date = None
+    if system.backup_frequency == '每日':
+        next_date = today + timedelta(days=1)
+    elif system.backup_frequency == '每周':
+        next_date = today + timedelta(weeks=1)
+    elif system.backup_frequency == '每月':
+        next_date = today + relativedelta(months=1)
+    elif system.backup_frequency == '每季度':
+        next_date = today + relativedelta(months=3)
+    elif system.backup_frequency == '每半年':
+        next_date = today + relativedelta(months=6)
+    
+    system.next_backup_date = next_date
+    
+    try:
+        db.session.commit()
+        flash(f'系统 “{system.name}” 的备份状态已更新。', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'更新备份状态失败: {e}', 'danger')
+        
+    return redirect(url_for('routes.backup_dashboard'))
 
 @bp.route('/restore_dashboard')
 @login_required
 @roles_required('admin', 'qc')
 def restore_dashboard():
-    systems = System.query.order_by(System.system_number).all()
+    priority_order = case(
+        (System.is_restore_verified == True, 1),
+        else_=2
+    )
+    systems = System.query.order_by(
+        System.is_restore_verified.desc(), # True (1) 会排在 False (0) 前面
+        System.system_number.asc()
+    ).all()
+    
+    systems.sort(key=lambda s: (
+        not s.is_restore_verified,  # 需要验证的 (False) 排在前面
+        s.get_next_verification_date() or date(9999, 12, 31) # 按下次验证日期升序
+    ))
     return render_template('restore_verification_dashboard.html', title='备份还原验证清单', 
                            systems=systems, today=date.today())
 
@@ -636,7 +695,61 @@ def approve_add_request(request_id):
     flash(f'用户 "{req.chinese_name}" 的新增申请已处理完成。', 'success')
     return redirect(url_for('routes.pending_requests'))
 
+@bp.route('/admin/requests/menjin_privilege_delete/approve_all', methods=['POST'])
+@login_required
+@roles_required('admin')
+def approve_all_menjin_privilege_del():
+    from menjin.routes import get_db_connection, print_log # 导入 menjin 的函数
 
+    pending_reqs = MenjinPrivilegeDeletionRequest.query.filter_by(status='pending').all()
+    if not pending_reqs:
+        return jsonify({'status': 'info', 'message': '没有待处理的申请。'}), 200
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'status': 'error', 'message': '无法连接到门禁数据库。'}), 500
+
+    success_count = 0
+    failure_count = 0
+    
+    try:
+        with conn.cursor() as cursor:
+            for req in pending_reqs:
+                try:
+                    # 对每一条记录执行删除
+                    cursor.execute("DELETE FROM t_d_Privilege WHERE f_ConsumerID=? AND f_DoorID=? AND f_ControlSegID=?", 
+                                   (req.consumer_id, req.door_id, req.control_seg_id))
+                    
+                    # 如果SQL执行成功，更新主数据库中该条申请的状态
+                    req.status = 'completed'
+                    db.session.add(req) # 将其加入会话以便后续提交
+                    success_count += 1
+                except Exception as e:
+                    # 如果单条SQL执行失败
+                    print_log(f"批量删除门禁权限失败 (Request ID: {req.id}): {e}", "ERROR")
+                    req.status = 'failed' # 标记为失败
+                    db.session.add(req)
+                    failure_count += 1
+        
+        # 提交所有对门禁数据库的更改
+        conn.commit()
+        # 提交所有对主数据库的状态更新
+        db.session.commit()
+
+    except Exception as e:
+        conn.rollback()
+        db.session.rollback()
+        print_log(f"批量删除门禁权限时发生严重错误: {e}", "CRITICAL")
+        return jsonify({'status': 'error', 'message': f'执行批量操作时发生严重数据库错误: {e}'}), 500
+    finally:
+        if conn: conn.close()
+
+    return jsonify({
+        'status': 'success',
+        'message': '批量处理完成。',
+        'success_count': success_count,
+        'failure_count': failure_count
+    })
 
 @bp.route('/admin/requests/menjin_delete/<int:request_id>/approve', methods=['POST'])
 @login_required

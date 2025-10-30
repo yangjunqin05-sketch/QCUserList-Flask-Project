@@ -1,10 +1,10 @@
-<!-- app/templates/backup_dashboard.html -->
+<!-- app/templates/backup_dashboard.html (动态备份管理版) -->
 
 {% extends "base.html" %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="mb-0">系统备份状态清单</h1>
+    <h1 class="mb-0">备份状态清单</h1>
 </div>
 <div class="card">
     <div class="card-body">
@@ -16,10 +16,14 @@
                         <th>仪器/系统名称</th>
                         <th>系统分组</th>
                         <th>电脑加域</th>
-                        <th>计算机名</th>
-                        <th>IP 地址</th>
                         <th>备份方式</th>
                         <th>备份频次</th>
+                        <th>上次备份日期</th>
+                        <th>下次备份日期</th>
+                        <th>状态</th>
+                        {% if current_user.role in ['admin', 'qc'] %}
+                        <th>操作</th>
+                        {% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -29,31 +33,50 @@
                         <td><a href="{{ url_for('routes.system_detail', system_id=system.id) }}">{{ system.name }}</a></td>
                         <td><span class="badge bg-secondary">{{ system.group.name if system.group else '未分组' }}</span></td>
                         <td><span class="badge {{ 'bg-success' if system.is_domain_joined else 'bg-secondary' }}">{{ "是" if system.is_domain_joined else "否" }}</span></td>
-                        <td>{{ system.computer_name or 'N/A' }}</td>
-                        <td>{{ system.ip_address or 'N/A' }}</td>
                         <td>
-                            {# --- 核心修改：开始颜色标记逻辑 --- #}
                             {% set method = system.backup_method or '未配置' %}
-                            
-                            {% if '手动' in method %}
-                                {# 所有包含“手动”字样的，都用橙色警告标记 #}
-                                <span class="badge bg-warning text-dark">{{ method }}</span>
-                            {% elif method == 'avamar自动备份' %}
-                                {# 自动备份用绿色成功标记 #}
-                                <span class="badge bg-success">{{ method }}</span>
-                            {% elif method == '无需备份' %}
-                                {# 无需备份用灰色标记 #}
-                                <span class="badge bg-secondary">{{ method }}</span>
-                            {% else %}
-                                {# 其他情况（如未配置、其他）用浅灰色标记 #}
-                                <span class="badge bg-light text-dark">{{ method }}</span>
-                            {% endif %}
-                            {# --- 结束颜色标记逻辑 --- #}
+                            {% if '手动' in method %}<span class="badge bg-warning text-dark">{{ method }}</span>
+                            {% elif method == 'avamar自动备份' %}<span class="badge bg-success">{{ method }}</span>
+                            {% elif method == '无需备份' %}<span class="badge bg-secondary">{{ method }}</span>
+                            {% else %}<span class="badge bg-light text-dark">{{ method }}</span>{% endif %}
                         </td>
                         <td>{{ system.backup_frequency or '未配置' }}</td>
+                        
+                        {# --- 新增的动态列 --- #}
+                        {%  if system.backup_frequency == '每季度' %}
+                            <td>{{ system.last_backup_date.strftime('%Y-%m-%d') if system.last_backup_date else '无记录' }}</td>
+                            <td>{{ system.next_backup_date.strftime('%Y-%m-%d') if system.next_backup_date else 'N/A' }}</td>
+                            <td>
+                                {% if system.next_backup_date %}
+                                    {% set days_left = (system.next_backup_date - today).days %}
+                                    {% if days_left < 0 %}
+                                        <span class="badge bg-danger">已逾期</span>
+                                    {% elif days_left <= 7 %}
+                                        <span class="badge bg-warning text-dark">即将到期</span>
+                                    {% else %}
+                                        <span class="badge bg-success">正常</span>
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                            {% if current_user.role in ['admin', 'qc'] %}
+                            <td>
+                                <form action="{{ url_for('routes.perform_backup', system_id=system.id) }}" method="POST" onsubmit="return confirm('确认 “{{ system.name }}” 今日已完成备份吗？')">
+                                    <button type="submit" class="btn btn-sm btn-success">备份完成</button>
+                                </form>
+                            </td>
+                            {% endif %}
+                        {% else %}
+                            {# 如果备份频次不是时间相关的，则显示空列 #}
+                            <td>-</td>
+                            <td>-</td>
+                            <td>-</td>
+                            {% if current_user.role in ['admin', 'qc'] %}
+                            <td>-</td>
+                            {% endif %}
+                        {% endif %}
                     </tr>
                     {% else %}
-                    <tr><td colspan="8" class="text-center text-muted">系统中没有任何记录。</td></tr>
+                    <tr><td colspan="10" class="text-center text-muted">系统中没有任何记录。</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
