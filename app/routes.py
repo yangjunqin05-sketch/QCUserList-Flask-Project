@@ -539,7 +539,7 @@ def cancel_my_request(req_type, request_id):
 def new_role_change_request():
     form = RoleChangeRequestForm()
     form.system.choices = [(0, '-- 请先选择一个系统 --')] + [
-        (s.id, f"{s.system_number} - {s.name}") for s in System.query.order_by(System.name).all()
+        (s.id, f"{s.system_number} - {s.name}") for s in System.query.order_by(System.system_number).all()
     ]
     if request.method == 'POST':
         system_id = form.system.data

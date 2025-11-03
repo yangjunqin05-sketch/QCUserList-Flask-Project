@@ -57,6 +57,7 @@
                         <div id="dept-display-{{ user.f_ConsumerNO }}">{{ user.DepartmentName or '未分配' }}</div>
                         <div id="dept-edit-{{ user.f_ConsumerNO }}" style="display: none;">
                             <form action="{{ url_for('menjin.update_department', consumer_no=user.f_ConsumerNO) }}" method="POST">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <div class="input-group input-group-sm">
                                     <select name="department_id" class="form-select">
                                         <option value="">-- 未分配 --</option>

@@ -68,7 +68,7 @@
                                 </td>
                                 <td>
                                     {# 切换按钮只给admin #}
-                                    {% if current_user.role == 'admin', 'qa' %}
+                                    {% if current_user.role in ['admin', 'qa'] %}
                                     <form action="{{ url_for('routes.toggle_qa_check_need', system_id=system.id) }}" method="POST">
                                         <div class="form-check form-switch">
                                             <input class="form-check-input" type="checkbox" role="switch" onchange="this.form.submit()" {% if system.needs_qa_check %}checked{% endif %}>
