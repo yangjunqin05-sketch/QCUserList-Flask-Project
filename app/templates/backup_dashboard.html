@@ -18,6 +18,7 @@
                         <th>电脑加域</th>
                         <th>备份方式</th>
                         <th>备份频次</th>
+                        <th>Avamar备份状态</th>
                         <th>上次备份日期</th>
                         <th>下次备份日期</th>
                         <th>状态</th>
@@ -41,7 +42,17 @@
                             {% else %}<span class="badge bg-light text-dark">{{ method }}</span>{% endif %}
                         </td>
                         <td>{{ system.backup_frequency or '未配置' }}</td>
-                        
+                            <td>
+                            {% set status = system.avamar_status or '未知' %}
+                            {% if 'Succeeded' in status %}
+                                <span class="badge bg-success" title="{{ status }}">成功</span>
+                            {% elif 'Failed' in status %}
+                                <span class="badge bg-danger" title="{{ status }}">失败</span>
+                            {% else %}
+                                <span class="badge bg-secondary" title="{{ status }}">{{ status }}</span>
+                            {% endif %}
+                            </td>
+
                         {# --- 新增的动态列 --- #}
                         {%  if system.backup_frequency == '每季度' %}
                             <td>{{ system.last_backup_date.strftime('%Y-%m-%d') if system.last_backup_date else '无记录' }}</td>

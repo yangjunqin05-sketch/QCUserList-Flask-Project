@@ -126,6 +126,7 @@ class System(db.Model):
     check_frequency_days = db.Column(db.Integer, default=90)
     last_check_date = db.Column(db.Date, nullable=True)
     next_check_date = db.Column(db.Date, nullable=True)
+
     
     # --- QA 核查专用字段 ---
     needs_qa_check = db.Column(db.Boolean, default=True, nullable=False, index=True)
@@ -142,6 +143,7 @@ class System(db.Model):
     # --- 新增备份日期字段 ---
     last_backup_date = db.Column(db.Date, nullable=True)
     next_backup_date = db.Column(db.Date, nullable=True)
+    avamar_status = db.Column(db.String(100), nullable=True, default='未知')
     # --- 关系 (Relationships) ---
     history = db.relationship('CheckHistory', backref='system', lazy='dynamic', cascade="all, delete-orphan")
     system_users = db.relationship('SystemUser', backref='system', lazy='dynamic', cascade="all, delete-orphan")

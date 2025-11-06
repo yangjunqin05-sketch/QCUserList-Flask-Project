@@ -20,7 +20,7 @@ except ImportError:
 
 
 # --- 配置 ---
-SERVER_URL = "http://192.168.15.208:5050"
+SERVER_URL = "http://10.32.3.24"
 POLL_INTERVAL_SECONDS = 20
 
 # --- 路径设置 ---
